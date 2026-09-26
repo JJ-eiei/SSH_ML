@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SSH Brute-Force Detector — Model Test</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>SSH Brute-Force Detector</h1>
+    <p class="subtitle">ทดสอบโมเดล Random Forest (v2) กับ log ไฟล์ — ประมวลผลทั้งหมดในเบราว์เซอร์ ไม่มีข้อมูลถูกส่งออกไปที่ไหน</p>
+  </header>
+
+  <main>
+    <section id="upload-panel" class="panel">
+      <div class="upload-row">
+        <label class="file-drop" id="file-drop">
+          <input type="file" id="file-input" accept=".csv">
+          <span id="file-drop-label">เลือกไฟล์ log (.csv) หรือลากมาวางที่นี่</span>
+        </label>
+        <button id="load-sample-btn" class="btn-secondary" type="button">ใช้ไฟล์ตัวอย่าง</button>
+      </div>
+
+      <div class="controls-row">
+        <div class="control">
+          <label for="gap-input">Session gap threshold (นาที)</label>
+          <input type="number" id="gap-input" min="1" max="1440" value="30">
+          <span class="hint">ห่างกันเกินนี้ถือเป็น session ใหม่ของ IP เดียวกัน</span>
+        </div>
+        <div class="control">
+          <label for="threshold-input">Decision threshold: <span id="threshold-value">0.55</span></label>
+          <input type="range" id="threshold-input" min="0" max="1" step="0.01" value="0.55">
+          <span class="hint">ต่ำ = recall สูงขึ้น (จับ attack ได้มากขึ้น แต่ false positive มากขึ้น)</span>
+        </div>
+      </div>
+      <p id="status-line" class="status-line"></p>
+    </section>
+
+    <section id="summary-panel" class="panel hidden">
+      <div class="summary-cards">
+        <div class="card"><span class="card-value" id="stat-sessions">0</span><span class="card-label">Sessions ทั้งหมด</span></div>
+        <div class="card card-attack"><span class="card-value" id="stat-attack">0</span><span class="card-label">ถูก flag ว่า Attack</span></div>
+        <div class="card"><span class="card-value" id="stat-legit">0</span><span class="card-label">ถือว่าปกติ</span></div>
+        <div class="card"><span class="card-value" id="stat-ips">0</span><span class="card-label">Source IP ไม่ซ้ำ</span></div>
+      </div>
+    </section>
+
+    <section id="results-panel" class="panel hidden">
+      <div class="table-header-row">
+        <h2>ผลลัพธ์ต่อ Session</h2>
+        <label class="filter-toggle"><input type="checkbox" id="attack-only-toggle"> แสดงเฉพาะที่ถูก flag</label>
+      </div>
+      <div class="table-scroll">
+        <table id="results-table">
+          <thead>
+            <tr>
+              <th data-sort="risk">Risk</th>
+              <th data-sort="ip">Source IP</th>
+              <th data-sort="start">เริ่ม</th>
+              <th data-sort="duration">Duration</th>
+              <th data-sort="n_events">Events</th>
+              <th data-sort="n_failed">Failed</th>
+              <th data-sort="n_unique_usernames">Usernames</th>
+              <th>Evidence</th>
+            </tr>
+          </thead>
+          <tbody id="results-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>โมเดลเทรนจากข้อมูล synthetic (ผสม pattern burst / low-and-slow / password spraying / focused brute force / ambiguous cases) ยังไม่ได้ validate กับ traffic โจมตีจริง — ใช้เป็นเครื่องมือทดสอบ ไม่ใช่ระบบ production</p>
+  </footer>
+
+  <script src="js/features.js"></script>
+  <script src="js/model.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
