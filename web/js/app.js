@@ -210,7 +210,41 @@
   );
   fileDrop.addEventListener("drop", (e) => {
     const file = e.dataTransfer.files[0];
-    if (file) readAndHandle(file);
+    if (file) { readAndHandle(file); return; }
+    // not a real OS file drop -- check for an internal test-suite card drag
+    const url = e.dataTransfer.getData("text/plain");
+    if (url && url.startsWith("test_logs/")) {
+      const name = url.split("/").pop();
+      loadFromUrl(url, name);
+    }
+  });
+
+  async function loadFromUrl(url, name) {
+    setStatus(`กำลังโหลด ${name}...`);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`โหลด ${name} ไม่สำเร็จ (${res.status})`);
+      const text = await res.text();
+      fileDropLabel.textContent = name;
+      handleFile(text, name);
+    } catch (err) {
+      setStatus("เกิดข้อผิดพลาด: " + err.message, true);
+    }
+  }
+
+  // test-suite cards: click "load" button, or drag the whole card onto the
+  // upload dropzone above (native HTML5 drag-and-drop -- see fileDrop "drop"
+  // handler, which reads the URL back out of dataTransfer).
+  document.querySelectorAll(".btn-load").forEach(btn => {
+    btn.addEventListener("click", () => loadFromUrl(btn.dataset.file, btn.dataset.name));
+  });
+  document.querySelectorAll(".test-card").forEach(card => {
+    card.addEventListener("dragstart", (e) => {
+      e.dataTransfer.setData("text/plain", card.dataset.file);
+      e.dataTransfer.effectAllowed = "copy";
+      card.classList.add("dragging");
+    });
+    card.addEventListener("dragend", () => card.classList.remove("dragging"));
   });
 
   loadSampleBtn.addEventListener("click", async () => {
