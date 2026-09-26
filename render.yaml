@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: sshml-backend
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    autoDeploy: true
+
+  - type: web
+    name: sshml-frontend
+    runtime: static
+    rootDir: web
+    buildCommand: echo "static site, nothing to build"
+    staticPublishPath: .
+    autoDeploy: true

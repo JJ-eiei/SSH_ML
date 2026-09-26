@@ -62,7 +62,34 @@
     return bits.join(" · ");
   }
 
-  function runPipeline(csvText, gapMinutes) {
+  function apiBaseUrl() {
+    return (window.SSHML_CONFIG && window.SSHML_CONFIG.API_BASE_URL) || "";
+  }
+
+  async function runPipelineViaBackend(csvText, gapMinutes) {
+    const formData = new FormData();
+    formData.append("file", new Blob([csvText], { type: "text/csv" }), "log.csv");
+    const res = await fetch(`${apiBaseUrl()}/predict?gap_minutes=${gapMinutes}`, { method: "POST", body: formData });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`Backend ตอบผิดพลาด (${res.status}): ${text.slice(0, 200)}`);
+    }
+    const data = await res.json();
+    const results = data.sessions.map(s => ({
+      session: {
+        ip: s.ip,
+        rows: s.rows.map(r => ({
+          ts: Date.parse(r.ts), tsRaw: r.ts,
+          Event: r.event, Username: r.username, Source_Port: r.port,
+        })),
+      },
+      features: s.features,
+      proba: s.proba,
+    }));
+    return { nRows: data.n_rows, results };
+  }
+
+  function runPipelineLocally(csvText, gapMinutes) {
     const rows = SSHFeatures.loadLogRows(csvText);
     if (rows.length === 0) throw new Error("ไม่พบแถวข้อมูลที่อ่านได้ในไฟล์นี้");
     const sessions = SSHFeatures.segmentSessions(rows, gapMinutes);
@@ -72,7 +99,13 @@
       const proba = SSHModel.predictProba(x);
       return { session, features, proba };
     });
-    return { rows, results };
+    return { nRows: rows.length, results };
+  }
+
+  async function runPipeline(csvText, gapMinutes) {
+    return apiBaseUrl()
+      ? runPipelineViaBackend(csvText, gapMinutes)
+      : runPipelineLocally(csvText, gapMinutes);
   }
 
   function render() {
@@ -138,14 +171,16 @@
 
   async function handleFile(text, label) {
     try {
-      await ensureModelLoaded();
-      setStatus(`กำลังประมวลผล ${label}...`);
+      const usingBackend = !!apiBaseUrl();
+      if (!usingBackend) await ensureModelLoaded();
+      setStatus(`กำลังประมวลผล ${label}${usingBackend ? " ผ่าน backend..." : " ในเบราว์เซอร์..."}`);
       lastRawText = text;
       lastLabel = label;
       const gapMinutes = parseFloat(gapInput.value) || 30;
-      const { rows, results } = runPipeline(text, gapMinutes);
+      const { nRows, results } = await runPipeline(text, gapMinutes);
       currentResults = results;
-      setStatus(`อ่านได้ ${rows.length} แถว log แบ่งได้ ${results.length} session (จาก ${label}, gap threshold ${gapMinutes} นาที)`);
+      const modeNote = usingBackend ? "ประมวลผลบน backend" : "ประมวลผลในเบราว์เซอร์ทั้งหมด";
+      setStatus(`อ่านได้ ${nRows} แถว log แบ่งได้ ${results.length} session (จาก ${label}, gap threshold ${gapMinutes} นาที) — ${modeNote}`);
       summaryPanel.classList.remove("hidden");
       resultsPanel.classList.remove("hidden");
       render();
