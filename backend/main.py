@@ -20,12 +20,16 @@ MODEL_PATH = "ssh_bruteforce_model_v2.joblib"
 
 app = FastAPI(title="SSH Brute-Force Detector API")
 
-# Demo-permissive CORS -- this is a portfolio/test tool, not a service
-# handling sensitive data. Tighten allow_origins to the deployed frontend's
-# exact URL once you know it, for anything beyond a demo.
+# Locked to the deployed static frontend's origin. Add more origins here
+# (e.g. a custom domain, or http://localhost:8000 for local testing) if needed.
+ALLOWED_ORIGINS = [
+    "https://sshml-frontend.onrender.com",
+    "http://localhost:8000",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
