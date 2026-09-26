@@ -46,7 +46,7 @@
       panel.classList.add("reveal");
     });
     requestAnimationFrame(() => {
-      resultsPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+      summaryPanel.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   }
 
