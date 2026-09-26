@@ -11,6 +11,8 @@
   const thresholdInput = document.getElementById("threshold-input");
   const thresholdValue = document.getElementById("threshold-value");
   const statusLine = document.getElementById("status-line");
+  const statusSpinner = document.getElementById("status-spinner");
+  const statusText = document.getElementById("status-text");
   const summaryPanel = document.getElementById("summary-panel");
   const resultsPanel = document.getElementById("results-panel");
   const resultsTbody = document.getElementById("results-tbody");
@@ -26,8 +28,26 @@
   let sortState = { key: "risk", dir: -1 };
 
   function setStatus(msg, isError = false) {
-    statusLine.textContent = msg;
+    statusText.textContent = msg;
     statusLine.classList.toggle("error", isError);
+  }
+
+  function setLoading(isLoading) {
+    statusSpinner.classList.toggle("hidden", !isLoading);
+  }
+
+  function revealResults() {
+    summaryPanel.classList.remove("hidden");
+    resultsPanel.classList.remove("hidden");
+    [summaryPanel, resultsPanel].forEach(panel => {
+      panel.classList.remove("reveal");
+      // eslint-disable-next-line no-unused-expressions -- restart the CSS animation
+      void panel.offsetWidth;
+      panel.classList.add("reveal");
+    });
+    requestAnimationFrame(() => {
+      resultsPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }
 
   async function ensureModelLoaded() {
@@ -170,6 +190,7 @@
   }
 
   async function handleFile(text, label) {
+    setLoading(true);
     try {
       const usingBackend = !!apiBaseUrl();
       if (!usingBackend) await ensureModelLoaded();
@@ -181,12 +202,13 @@
       currentResults = results;
       const modeNote = usingBackend ? "ประมวลผลบน backend" : "ประมวลผลในเบราว์เซอร์ทั้งหมด";
       setStatus(`อ่านได้ ${nRows} แถว log แบ่งได้ ${results.length} session (จาก ${label}, gap threshold ${gapMinutes} นาที) — ${modeNote}`);
-      summaryPanel.classList.remove("hidden");
-      resultsPanel.classList.remove("hidden");
       render();
+      revealResults();
     } catch (err) {
       setStatus("เกิดข้อผิดพลาด: " + err.message, true);
       console.error(err);
+    } finally {
+      setLoading(false);
     }
   }
 
