@@ -14,6 +14,35 @@ for local `file://` resources, and this page uses `fetch()` to load
 - **Manual**: open a terminal here and run `python -m http.server 8000`,
   then open `http://localhost:8000`.
 
+## Live Attack Console
+
+A third way to test the model, alongside uploading a file and loading a
+canned demo: a fake SSH terminal (`js/live-console.js`) where you type
+password guesses yourself, or click a preset (Burst / Focused / Password
+Spray / Credential Stuffing) to watch it play out automatically. Every
+attempt is scored live through the exact same `SSHFeatures`/`SSHModel`
+pipeline as everything else on this page — always client-side, regardless
+of `config.js`. Nothing is a real server or real auth; it only builds an
+in-memory log in the same schema the model expects and re-scores it after
+every line.
+
+Two things worth trying:
+- Type slowly by hand vs. run a preset — the risk score usually rises much
+  faster for the preset, because `attempts_per_minute` reflects real
+  automation speed vs. human typing speed. That gap *is* the signal.
+- After ~8 failed guesses a hint reveals the password. Log in successfully
+  and watch the score often *drop* even though most of the session was
+  fails — `ends_after_success` is one of the model's higher-weight
+  features, so "many fails then a clean success" reads closer to a
+  legit-typo user than a still-failing attacker. Worth pointing out when
+  demoing: it's a real, inspectable model behavior, not a bug.
+
+Scope note: this only simulates a single attacking IP (manual or preset).
+It intentionally does not simulate a coordinated multi-IP botnet spike or a
+persistent multi-day campaign live in the terminal — those two behaviors
+are still fully demonstrated via the `09`/`10` canned test logs, which
+already carry the multi-session/multi-IP history those features need.
+
 ## What's new in v3
 
 - **Event vocabulary expanded**: `Invalid user` and `Accepted publickey`,

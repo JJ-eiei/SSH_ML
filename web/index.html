@@ -165,6 +165,46 @@
       </div>
     </section>
 
+    <section id="live-console-panel" class="panel">
+      <h2>ลองยิงเอง — Live Attack Console <span class="version-badge">จำลอง</span></h2>
+      <p class="hint">พิมพ์เดา password เองเหมือน SSH จริง หรือกดปุ่มให้ระบบจำลองพฤติกรรมสำเร็จรูปให้ดู — ทุก attempt จะถูกให้คะแนนโดยโมเดลทันที ประมวลผลในเบราว์เซอร์ทั้งหมด ไม่เชื่อมต่อเซิร์ฟเวอร์จริงและไม่มีข้อมูลถูกส่งออกไปที่ไหน (โหมดนี้ทำงานฝั่ง client เสมอ ไม่ว่า config.js จะตั้งค่า backend ไว้หรือไม่) หมายเหตุ: ถ้าพิมพ์เอง สกอร์อาจขึ้นช้ากว่าที่คิด เพราะจังหวะพิมพ์ของคนจริงช้ากว่าการโจมตีอัตโนมัติมาก — ลองกด preset ดูเพื่อเห็นความต่าง</p>
+
+      <div class="console-layout">
+        <div class="terminal" id="live-terminal">
+          <div class="terminal-header">
+            <span class="terminal-dot dot-r"></span><span class="terminal-dot dot-y"></span><span class="terminal-dot dot-g"></span>
+            <span class="terminal-title">simulated-ssh — <span id="terminal-ip">-</span></span>
+          </div>
+          <div class="terminal-body" id="terminal-body"></div>
+          <form id="terminal-input-row" class="terminal-input-row">
+            <span class="terminal-prompt" id="terminal-prompt-label">login as:</span>
+            <input type="text" id="terminal-input" autocomplete="off" spellcheck="false">
+          </form>
+        </div>
+
+        <div class="live-side-panel">
+          <div class="gauge-wrap">
+            <div class="gauge-label">Risk Score (live)</div>
+            <div class="gauge-bar"><div class="gauge-fill" id="live-gauge-fill"></div></div>
+            <div class="gauge-value" id="live-gauge-value">0%</div>
+            <div class="gauge-verdict" id="live-gauge-verdict">รอข้อมูล...</div>
+          </div>
+          <div class="live-features" id="live-features"></div>
+          <div class="console-actions">
+            <button type="button" class="btn-secondary" id="live-reset-btn">เริ่มใหม่ (IP ใหม่)</button>
+            <button type="button" class="btn-secondary" id="live-download-btn" disabled>ดาวน์โหลด log นี้</button>
+          </div>
+          <div class="preset-buttons">
+            <p class="hint" style="margin:0 0 6px">หรือให้ระบบยิงให้ดู (single-IP):</p>
+            <button type="button" class="btn-preset" data-preset="burst">Burst</button>
+            <button type="button" class="btn-preset" data-preset="focused">Focused</button>
+            <button type="button" class="btn-preset" data-preset="spray">Password Spray</button>
+            <button type="button" class="btn-preset" data-preset="stuffing">Credential Stuffing</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section id="summary-panel" class="panel hidden">
       <div class="summary-cards">
         <div class="card"><span class="card-value" id="stat-sessions">0</span><span class="card-label">Sessions ทั้งหมด</span></div>
@@ -207,5 +247,6 @@
   <script src="js/features.js"></script>
   <script src="js/model.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/live-console.js"></script>
 </body>
 </html>
