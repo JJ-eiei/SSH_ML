@@ -78,7 +78,8 @@
       bits.push(`username: ${session.rows[0].Username}`);
     }
     if (features.targets_default_username) bits.push("default/service account targeted");
-    bits.push(`${features.n_unique_ports} port(s)`);
+    if (features.ip_session_count > 1) bits.push(`IP seen in ${features.ip_session_count} sessions over ${features.ip_active_span_days.toFixed(1)}d`);
+    if (features.distinct_ips_same_target_15min > 0) bits.push(`${features.distinct_ips_same_target_15min} other IP(s) hit same user within 15min`);
     return bits.join(" · ");
   }
 
@@ -113,8 +114,12 @@
     const rows = SSHFeatures.loadLogRows(csvText);
     if (rows.length === 0) throw new Error("ไม่พบแถวข้อมูลที่อ่านได้ในไฟล์นี้");
     const sessions = SSHFeatures.segmentSessions(rows, gapMinutes);
-    const results = sessions.map(session => {
-      const features = SSHFeatures.extractFeatures(session);
+    // IP-level and time-window features need the WHOLE file's sessions at
+    // once (not just one session in isolation), so features are computed
+    // for all sessions together, then scored one at a time.
+    const allFeatures = SSHFeatures.extractAllFeatures(rows, sessions);
+    const results = sessions.map((session, i) => {
+      const features = allFeatures[i];
       const x = SSHModel.featureVector(features);
       const proba = SSHModel.predictProba(x);
       return { session, features, proba };
@@ -254,9 +259,10 @@
     }
   }
 
-  // test-suite cards: click "load" button, or drag the whole card onto the
-  // upload dropzone above (native HTML5 drag-and-drop -- see fileDrop "drop"
-  // handler, which reads the URL back out of dataTransfer).
+  // test-suite cards: click "load" button (auto-runs it through the model),
+  // click "download" (native <a download>, no JS needed), or drag the whole
+  // card onto the upload dropzone above (native HTML5 drag-and-drop -- see
+  // fileDrop "drop" handler, which reads the URL back out of dataTransfer).
   document.querySelectorAll(".btn-load").forEach(btn => {
     btn.addEventListener("click", () => loadFromUrl(btn.dataset.file, btn.dataset.name));
   });

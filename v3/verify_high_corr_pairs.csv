@@ -1,0 +1,14 @@
+level_0,level_1,corr
+n_unique_usernames,ip_unique_usernames_targeted,0.9995717676689869
+mean_inter_arrival_s,median_inter_arrival_s,0.9981899435242421
+n_invalid_user,n_unique_usernames,0.99798895988882
+n_invalid_user,ip_unique_usernames_targeted,0.9975210525487983
+mean_inter_arrival_s,min_inter_arrival_s,0.956671699188793
+n_unique_usernames,n_unique_ports,0.956267845621197
+n_unique_ports,ip_unique_usernames_targeted,0.9545983612009319
+median_inter_arrival_s,min_inter_arrival_s,0.9545115328715321
+n_invalid_user,n_unique_ports,0.9538735582841193
+n_invalid_user,invalid_ratio,0.94332073307185
+invalid_ratio,n_unique_usernames,0.9409647905677232
+invalid_ratio,ip_unique_usernames_targeted,0.9404466279126427
+invalid_ratio,n_unique_ports,0.8994190696636132

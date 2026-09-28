@@ -1,5 +1,6 @@
 """
-main.py -- FastAPI backend for the SSH brute-force detector.
+main.py -- FastAPI backend for the SSH brute-force detector (v3 model:
+session + IP-level + cross-IP time-window features; see pipeline.py).
 
 Endpoints:
   GET  /health           liveness check (Render pings this kind of thing)
@@ -7,7 +8,7 @@ Endpoints:
 
 Run locally:
     uvicorn main:app --reload
-Deploy on Render: see ../render.yaml and ../DEPLOY.md
+Deploy on Render: see ../render.yaml
 """
 
 import joblib
@@ -16,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from pipeline import load_log_dataframe, segment_sessions, build_session_results
 
-MODEL_PATH = "ssh_bruteforce_model_v2.joblib"
+MODEL_PATH = "ssh_bruteforce_model_v3.joblib"
 
 app = FastAPI(title="SSH Brute-Force Detector API")
 

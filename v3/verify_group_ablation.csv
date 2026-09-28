@@ -1,0 +1,8 @@
+dropped_group,features_dropped,PR_AUC_without,PR_AUC_drop,F1_without,F1_drop
+ip_level,"ip_session_count, ip_active_span_days, ip_sessions_per_day, ip_total_events, ip_unique_usernames_targeted",0.995924865920393,0.001770966457314116,0.9772357723577236,0.005677164989713268
+temporal,"duration_seconds, mean_inter_arrival_s, median_inter_arrival_s, std_inter_arrival_s, min_inter_arrival_s, attempts_per_minute",0.9959290397604241,0.001766792617282964,0.9773828756058158,0.005530061741621073
+time_window,distinct_ips_same_target_15min,0.9970885535691507,0.0006072788085563774,0.9829129373474369,0.0
+domain_flags,"targets_default_username, ends_after_success",0.9974137873287727,0.0002820450489343651,0.9821138211382113,0.0007991162092255699
+volume_counts,"n_failed, n_invalid_user, n_success",0.9974249488973936,0.0002708834803134552,0.9829129373474369,0.0
+diversity,"n_unique_usernames, username_entropy, n_unique_ports",0.9975968117870366,9.90205906704622e-05,0.9829129373474369,0.0
+ratios,"fail_ratio, invalid_ratio, publickey_ratio",0.9976003846961365,9.54476815705485e-05,0.9829129373474369,0.0

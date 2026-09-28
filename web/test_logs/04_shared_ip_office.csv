@@ -1,0 +1,7 @@
+Log_ID,Timestamp,Event,Username,Source_IP,Source_Port,Password
+LOG_00001,2026-09-21 16:00:22.000000,Accepted password,f.rossi,61.78.27.185,51080,***HIDDEN***
+LOG_00002,2026-09-21 16:04:05.077513,Accepted publickey,t.nguyen,61.78.27.185,54809,***HIDDEN***
+LOG_00003,2026-09-21 16:16:34.455874,Accepted password,a.patel,61.78.27.185,49992,***HIDDEN***
+LOG_00004,2026-09-21 16:29:05.616316,Accepted password,v.ivanov,61.78.27.185,55490,***HIDDEN***
+LOG_00005,2026-09-21 16:31:59.008202,Accepted password,jsmith,61.78.27.185,61354,***HIDDEN***
+LOG_00006,2026-09-21 16:33:44.453082,Accepted password,r.kim,61.78.27.185,57307,***HIDDEN***

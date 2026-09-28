@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SSH Brute-Force Detector — Model Test</title>
+<title>SSH Brute-Force Detector — Model Test (v3)</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>
-    <h1>SSH Brute-Force Detector</h1>
-    <p class="subtitle">ทดสอบโมเดล Random Forest (v2) กับ log ไฟล์ — ประมวลผลทั้งหมดในเบราว์เซอร์ ไม่มีข้อมูลถูกส่งออกไปที่ไหน</p>
+    <h1>SSH Brute-Force Detector <span class="version-badge">v3</span></h1>
+    <p class="subtitle">ตรวจจับพฤติกรรมโจมตี SSH ด้วย session + IP-level + cross-IP time-window features — ประมวลผลทั้งหมดในเบราว์เซอร์ ไม่มีข้อมูลถูกส่งออกไปที่ไหน</p>
   </header>
 
   <main>
@@ -39,129 +39,129 @@
 
     <section id="test-suite-panel" class="panel">
       <h2>ชุดไฟล์ทดสอบ (10 ไฟล์)</h2>
-      <p class="hint">ลากการ์ดด้านล่างไปวางที่ช่องอัปโหลดด้านบนได้เลย หรือกด "โหลดเข้าเครื่องมือ" / "ดาวน์โหลด" — แต่ละไฟล์คือ log จำลองคนละพฤติกรรม</p>
+      <p class="hint">ลากการ์ดด้านล่างไปวางที่ช่องอัปโหลดด้านบนได้เลย หรือกด "โหลดเข้าเครื่องมือ" (รันผ่านโมเดลทันที) / "ดาวน์โหลด" (เซฟไฟล์ลงเครื่อง) — 3 ไฟล์สุดท้ายเป็นพฤติกรรมใหม่ที่ v3 เพิ่มเข้ามา ซึ่ง v2 มองไม่เห็น</p>
       <div class="test-suite-grid">
-        <div class="test-card" draggable="true" data-file="test_logs/01_normal_legit_baseline.csv" data-name="01_normal_legit_baseline.csv">
+
+        <div class="test-card" draggable="true" data-file="test_logs/01_legit_baseline.csv" data-name="01_legit_baseline.csv">
           <div class="test-card-head">
             <span class="tag tag-safe">SAFE</span>
             <h3>Baseline ปกติ</h3>
           </div>
-          <p>Login สำเร็จของหลายคน + พิมพ์ผิดบ้างแล้วสำเร็จ ไม่มี attack เลย (เช็ค false positive)</p>
+          <p>Login สำเร็จของพนักงานหลายคน หลาย IP ไม่มี fail เลย — เช็ค false positive พื้นฐาน</p>
           <div class="test-card-actions">
-            <button type="button" class="btn-load" data-file="test_logs/01_normal_legit_baseline.csv" data-name="01_normal_legit_baseline.csv">โหลดเข้าเครื่องมือ</button>
-            <a href="test_logs/01_normal_legit_baseline.csv" download class="btn-download">ดาวน์โหลด</a>
+            <button type="button" class="btn-load" data-file="test_logs/01_legit_baseline.csv" data-name="01_legit_baseline.csv">โหลดเข้าเครื่องมือ</button>
+            <a href="test_logs/01_legit_baseline.csv" download class="btn-download">ดาวน์โหลด</a>
           </div>
         </div>
-        <div class="test-card" draggable="true" data-file="test_logs/02_burst_bruteforce_obvious.csv" data-name="02_burst_bruteforce_obvious.csv">
+
+        <div class="test-card" draggable="true" data-file="test_logs/02_legit_typo_noisy_user.csv" data-name="02_legit_typo_noisy_user.csv">
+          <div class="test-card-head">
+            <span class="tag tag-safe">HARD NEGATIVE</span>
+            <h3>User พิมพ์รหัสผิดบ่อย</h3>
+          </div>
+          <p>user จริงพิมพ์รหัสผิดหลายครั้งก่อนสำเร็จ — ต้องไม่ over-flag คนขี้ลืมรหัส</p>
+          <div class="test-card-actions">
+            <button type="button" class="btn-load" data-file="test_logs/02_legit_typo_noisy_user.csv" data-name="02_legit_typo_noisy_user.csv">โหลดเข้าเครื่องมือ</button>
+            <a href="test_logs/02_legit_typo_noisy_user.csv" download class="btn-download">ดาวน์โหลด</a>
+          </div>
+        </div>
+
+        <div class="test-card" draggable="true" data-file="test_logs/03_legit_multi_ip_roaming.csv" data-name="03_legit_multi_ip_roaming.csv">
+          <div class="test-card-head">
+            <span class="tag tag-safe">HARD NEGATIVE · NEW</span>
+            <h3>User Roaming หลาย IP</h3>
+          </div>
+          <p>user คนเดียว login สำเร็จจากหลาย IP ในเวลาไม่กี่ชั่วโมง (มือถือ/ทำงานนอกสถานที่) — "หลาย IP" อย่างเดียวไม่ควรแปลว่าน่าสงสัย</p>
+          <div class="test-card-actions">
+            <button type="button" class="btn-load" data-file="test_logs/03_legit_multi_ip_roaming.csv" data-name="03_legit_multi_ip_roaming.csv">โหลดเข้าเครื่องมือ</button>
+            <a href="test_logs/03_legit_multi_ip_roaming.csv" download class="btn-download">ดาวน์โหลด</a>
+          </div>
+        </div>
+
+        <div class="test-card" draggable="true" data-file="test_logs/04_shared_ip_office.csv" data-name="04_shared_ip_office.csv">
+          <div class="test-card-head">
+            <span class="tag tag-safe">HARD NEGATIVE</span>
+            <h3>Shared-IP Office/NAT</h3>
+          </div>
+          <p>IP office เดียว หลายคน login สำเร็จ — ต้องไม่ถูก flag ทั้งที่ username หลากหลายบน IP เดียว</p>
+          <div class="test-card-actions">
+            <button type="button" class="btn-load" data-file="test_logs/04_shared_ip_office.csv" data-name="04_shared_ip_office.csv">โหลดเข้าเครื่องมือ</button>
+            <a href="test_logs/04_shared_ip_office.csv" download class="btn-download">ดาวน์โหลด</a>
+          </div>
+        </div>
+
+        <div class="test-card" draggable="true" data-file="test_logs/05_burst_bruteforce_obvious.csv" data-name="05_burst_bruteforce_obvious.csv">
           <div class="test-card-head">
             <span class="tag tag-attack">ATTACK</span>
             <h3>Burst Brute Force (ชัดเจน)</h3>
           </div>
-          <p>IP เดียวยิง failed password รัวๆ 45 ครั้งใส่ root ไม่มี success เลย — ควรจับได้เกือบ 100%</p>
+          <p>IP เดียวยิง failed password รัวๆ ใส่ account เดียว ไม่มี success เลย — ควรจับได้เกือบ 100%</p>
           <div class="test-card-actions">
-            <button type="button" class="btn-load" data-file="test_logs/02_burst_bruteforce_obvious.csv" data-name="02_burst_bruteforce_obvious.csv">โหลดเข้าเครื่องมือ</button>
-            <a href="test_logs/02_burst_bruteforce_obvious.csv" download class="btn-download">ดาวน์โหลด</a>
+            <button type="button" class="btn-load" data-file="test_logs/05_burst_bruteforce_obvious.csv" data-name="05_burst_bruteforce_obvious.csv">โหลดเข้าเครื่องมือ</button>
+            <a href="test_logs/05_burst_bruteforce_obvious.csv" download class="btn-download">ดาวน์โหลด</a>
           </div>
         </div>
-        <div class="test-card" draggable="true" data-file="test_logs/03_focused_bruteforce_single_account.csv" data-name="03_focused_bruteforce_single_account.csv">
+
+        <div class="test-card" draggable="true" data-file="test_logs/06_focused_bruteforce_single_account.csv" data-name="06_focused_bruteforce_single_account.csv">
           <div class="test-card-head">
             <span class="tag tag-attack">ATTACK</span>
             <h3>Focused Brute Force</h3>
           </div>
-          <p>หลาย password ถูกยิงใส่ account เดียว ความถี่สูง — user เดียวไม่ได้แปลว่าปลอดภัย</p>
+          <p>หลาย password ถูกยิงใส่ account เดียว จำนวน fail/จังหวะเวลาจงใจให้ใกล้เคียงกับ user ที่พิมพ์ผิดจริง — โมเดลต้องแยกจากพฤติกรรมรวม ไม่ใช่แค่นับ fail</p>
           <div class="test-card-actions">
-            <button type="button" class="btn-load" data-file="test_logs/03_focused_bruteforce_single_account.csv" data-name="03_focused_bruteforce_single_account.csv">โหลดเข้าเครื่องมือ</button>
-            <a href="test_logs/03_focused_bruteforce_single_account.csv" download class="btn-download">ดาวน์โหลด</a>
+            <button type="button" class="btn-load" data-file="test_logs/06_focused_bruteforce_single_account.csv" data-name="06_focused_bruteforce_single_account.csv">โหลดเข้าเครื่องมือ</button>
+            <a href="test_logs/06_focused_bruteforce_single_account.csv" download class="btn-download">ดาวน์โหลด</a>
           </div>
         </div>
-        <div class="test-card" draggable="true" data-file="test_logs/04_password_spray_multi_account.csv" data-name="04_password_spray_multi_account.csv">
+
+        <div class="test-card" draggable="true" data-file="test_logs/07_password_spray_multi_account.csv" data-name="07_password_spray_multi_account.csv">
           <div class="test-card-head">
             <span class="tag tag-attack">ATTACK</span>
             <h3>Password Spraying</h3>
           </div>
-          <p>password ไม่กี่ตัว กระจายยิงหลาย username ผ่านหลาย IP</p>
+          <p>password ที่ใช้บ่อยไม่กี่ตัว กระจายยิงใส่หลาย username จาก IP เดียวหรือไม่กี่ IP</p>
           <div class="test-card-actions">
-            <button type="button" class="btn-load" data-file="test_logs/04_password_spray_multi_account.csv" data-name="04_password_spray_multi_account.csv">โหลดเข้าเครื่องมือ</button>
-            <a href="test_logs/04_password_spray_multi_account.csv" download class="btn-download">ดาวน์โหลด</a>
+            <button type="button" class="btn-load" data-file="test_logs/07_password_spray_multi_account.csv" data-name="07_password_spray_multi_account.csv">โหลดเข้าเครื่องมือ</button>
+            <a href="test_logs/07_password_spray_multi_account.csv" download class="btn-download">ดาวน์โหลด</a>
           </div>
         </div>
-        <div class="test-card" draggable="true" data-file="test_logs/05_low_and_slow_stealth.csv" data-name="05_low_and_slow_stealth.csv">
+
+        <div class="test-card" draggable="true" data-file="test_logs/08_credential_stuffing_leaked_creds.csv" data-name="08_credential_stuffing_leaked_creds.csv">
           <div class="test-card-head">
-            <span class="tag tag-edge">ต้องปรับ GAP</span>
-            <h3>Low-and-Slow (Stealth)</h3>
+            <span class="tag tag-attack">ATTACK · NEW</span>
+            <h3>Credential Stuffing</h3>
           </div>
-          <p>โจมตีถี่ห่างกันนาน ~20 ชม. ค่า default 30 นาทีจะจับไม่ได้เลย ลองปรับ gap เป็น 1200 แล้วดูผลต่าง</p>
+          <p>ใช้คู่ username:password ที่ "รู้อยู่แล้ว" (leaked credentials) — fail ต่อ account น้อยกว่าการเดาสุ่มมาก สำเร็จปนอยู่กลางๆ ไม่ใช่ท้ายสุด</p>
           <div class="test-card-actions">
-            <button type="button" class="btn-load" data-file="test_logs/05_low_and_slow_stealth.csv" data-name="05_low_and_slow_stealth.csv">โหลดเข้าเครื่องมือ</button>
-            <a href="test_logs/05_low_and_slow_stealth.csv" download class="btn-download">ดาวน์โหลด</a>
+            <button type="button" class="btn-load" data-file="test_logs/08_credential_stuffing_leaked_creds.csv" data-name="08_credential_stuffing_leaked_creds.csv">โหลดเข้าเครื่องมือ</button>
+            <a href="test_logs/08_credential_stuffing_leaked_creds.csv" download class="btn-download">ดาวน์โหลด</a>
           </div>
         </div>
-        <div class="test-card" draggable="true" data-file="test_logs/06_shared_ip_office_legit.csv" data-name="06_shared_ip_office_legit.csv">
+
+        <div class="test-card" draggable="true" data-file="test_logs/09_persistent_multiday_stealth.csv" data-name="09_persistent_multiday_stealth.csv">
           <div class="test-card-head">
-            <span class="tag tag-safe">HARD NEGATIVE</span>
-            <h3>Shared-IP Office</h3>
+            <span class="tag tag-attack">ATTACK · NEW</span>
+            <h3>Persistent Multi-day (Stealth)</h3>
           </div>
-          <p>IP office เดียว หลายคน login สำเร็จ ไม่มี fail เลย — ต้องไม่ถูก flag ทั้งที่ username หลากหลาย</p>
+          <p>IP เดิมกลับมาซ้ำๆ ~30 sessions กระจายกว่า 2 สัปดาห์ แต่ละ session สั้น/fail น้อยจนดูไม่น่าสงสัยทีละครั้ง — ต้องอาศัย <strong>IP-level feature</strong> (จำนวน session สะสม/ช่วงวันที่ยังโผล่มา) ถึงจะเห็นภาพรวม ฟีเจอร์ระดับ session อย่างเดียวจับไม่ได้</p>
           <div class="test-card-actions">
-            <button type="button" class="btn-load" data-file="test_logs/06_shared_ip_office_legit.csv" data-name="06_shared_ip_office_legit.csv">โหลดเข้าเครื่องมือ</button>
-            <a href="test_logs/06_shared_ip_office_legit.csv" download class="btn-download">ดาวน์โหลด</a>
+            <button type="button" class="btn-load" data-file="test_logs/09_persistent_multiday_stealth.csv" data-name="09_persistent_multiday_stealth.csv">โหลดเข้าเครื่องมือ</button>
+            <a href="test_logs/09_persistent_multiday_stealth.csv" download class="btn-download">ดาวน์โหลด</a>
           </div>
         </div>
-        <div class="test-card" draggable="true" data-file="test_logs/07_legit_typo_noisy_user.csv" data-name="07_legit_typo_noisy_user.csv">
+
+        <div class="test-card" draggable="true" data-file="test_logs/10_coordinated_botnet_spike.csv" data-name="10_coordinated_botnet_spike.csv">
           <div class="test-card-head">
-            <span class="tag tag-safe">HARD NEGATIVE</span>
-            <h3>User พิมพ์ผิดบ่อย</h3>
+            <span class="tag tag-attack">ATTACK · NEW</span>
+            <h3>Coordinated Botnet Spike</h3>
           </div>
-          <p>user จริงพิมพ์รหัสผิดสูงสุด 10 ครั้งก่อนสำเร็จ — ต้องไม่ over-flag คนขี้ลืมรหัส</p>
+          <p>~25 IP ต่างกัน ยิง account เป้าหมายเดียวกันพร้อมกันภายในไม่กี่นาที แต่ละ IP เองดูเหมือน burst เล็กๆ ทั่วไป — ต้องอาศัย <strong>cross-IP time-window feature</strong> (จำนวน IP อื่นที่ยิง target เดียวกันในกรอบ 15 นาที) ถึงจะเห็นการประสานงาน</p>
           <div class="test-card-actions">
-            <button type="button" class="btn-load" data-file="test_logs/07_legit_typo_noisy_user.csv" data-name="07_legit_typo_noisy_user.csv">โหลดเข้าเครื่องมือ</button>
-            <a href="test_logs/07_legit_typo_noisy_user.csv" download class="btn-download">ดาวน์โหลด</a>
+            <button type="button" class="btn-load" data-file="test_logs/10_coordinated_botnet_spike.csv" data-name="10_coordinated_botnet_spike.csv">โหลดเข้าเครื่องมือ</button>
+            <a href="test_logs/10_coordinated_botnet_spike.csv" download class="btn-download">ดาวน์โหลด</a>
           </div>
         </div>
-        <div class="test-card" draggable="true" data-file="test_logs/08_ambiguous_borderline.csv" data-name="08_ambiguous_borderline.csv">
-          <div class="test-card-head">
-            <span class="tag tag-edge">ตั้งใจให้คลุมเครือ</span>
-            <h3>Ambiguous / คลุมเครือ</h3>
-          </div>
-          <p>เคสที่ออกแบบให้แยกไม่ได้ 100% โดยตั้งใจ — พิสูจน์ข้อจำกัดของโมเดล ไม่ใช่บั๊ก</p>
-          <div class="test-card-actions">
-            <button type="button" class="btn-load" data-file="test_logs/08_ambiguous_borderline.csv" data-name="08_ambiguous_borderline.csv">โหลดเข้าเครื่องมือ</button>
-            <a href="test_logs/08_ambiguous_borderline.csv" download class="btn-download">ดาวน์โหลด</a>
-          </div>
-        </div>
-        <div class="test-card" draggable="true" data-file="test_logs/09_mixed_integration_day.csv" data-name="09_mixed_integration_day.csv">
-          <div class="test-card-head">
-            <span class="tag tag-mixed">INTEGRATION</span>
-            <h3>Mixed Integration Day</h3>
-          </div>
-          <p>จำลอง log วันเดียวที่มีทุก pattern ปนกัน หลาย IP พร้อมกัน — ทดสอบ pipeline แบบ end-to-end</p>
-          <div class="test-card-actions">
-            <button type="button" class="btn-load" data-file="test_logs/09_mixed_integration_day.csv" data-name="09_mixed_integration_day.csv">โหลดเข้าเครื่องมือ</button>
-            <a href="test_logs/09_mixed_integration_day.csv" download class="btn-download">ดาวน์โหลด</a>
-          </div>
-        </div>
-        <div class="test-card" draggable="true" data-file="test_logs/10_edge_cases_robustness.csv" data-name="10_edge_cases_robustness.csv">
-          <div class="test-card-head">
-            <span class="tag tag-edge">ROBUSTNESS</span>
-            <h3>Edge Cases</h3>
-          </div>
-          <p>เคสโครงสร้างพิเศษ: event เดียว, timestamp ซ้ำ, burst 200 attempts ใน 5 วิ, ขอบเขต gap พอดี 30 นาที</p>
-          <div class="test-card-actions">
-            <button type="button" class="btn-load" data-file="test_logs/10_edge_cases_robustness.csv" data-name="10_edge_cases_robustness.csv">โหลดเข้าเครื่องมือ</button>
-            <a href="test_logs/10_edge_cases_robustness.csv" download class="btn-download">ดาวน์โหลด</a>
-          </div>
-        </div>
-        <div class="test-card" draggable="true" data-file="test_logs/11_realistic_full_day.csv" data-name="11_realistic_full_day.csv">
-          <div class="test-card-head">
-            <span class="tag tag-mixed">จำลอง 1 วันเต็ม</span>
-            <h3>1 วันเต็มแบบสมจริงที่สุด</h3>
-          </div>
-          <p>จำลอง log จริง 24 ชม.: พนักงาน login ตามเวลางาน + service account heartbeat ทุก 4 ชม. + noise สแกนจากบอทอินเทอร์เน็ตทั่วไป (~40 IP แบบ hit-and-run) แฝงด้วย attack จริง 3 แบบ (focused, low-and-slow, spray) ตอนดึกและบ่าย</p>
-          <div class="test-card-actions">
-            <button type="button" class="btn-load" data-file="test_logs/11_realistic_full_day.csv" data-name="11_realistic_full_day.csv">โหลดเข้าเครื่องมือ</button>
-            <a href="test_logs/11_realistic_full_day.csv" download class="btn-download">ดาวน์โหลด</a>
-          </div>
-        </div>
+
       </div>
     </section>
 
@@ -200,7 +200,7 @@
   </main>
 
   <footer>
-    <p>โมเดลเทรนจากข้อมูล synthetic (ผสม pattern burst / low-and-slow / password spraying / focused brute force / ambiguous cases) ยังไม่ได้ validate กับ traffic โจมตีจริง — ใช้เป็นเครื่องมือทดสอบ ไม่ใช่ระบบ production</p>
+    <p>โมเดลเทรนจากข้อมูล synthetic v3 (session + IP-level cross-session + cross-IP time-window features) ยังไม่ได้ validate กับ traffic โจมตีจริง — ใช้เป็นเครื่องมือทดสอบ/สาธิต ไม่ใช่ระบบ production ฟีเจอร์ IP-level และ time-window คำนวณจากไฟล์ที่อัปโหลดทั้งไฟล์เท่านั้น (ไม่มี state ข้ามไฟล์)</p>
   </footer>
 
   <script src="config.js"></script>

@@ -1,8 +1,0 @@
-Log_ID,Timestamp,Event,Username,Source_IP,Source_Port,Password
-LOG_00001,2026-09-06 09:51:01.651316,Accepted password,oracle,182.251.231.123,63926,***HIDDEN***
-LOG_00002,2026-09-06 09:54:14.440849,Accepted password,mysql,182.251.231.123,55302,***HIDDEN***
-LOG_00003,2026-09-06 09:54:15.454186,Accepted password,ubuntu,182.251.231.123,65342,***HIDDEN***
-LOG_00004,2026-09-06 12:22:20.835065,Accepted password,bob,190.168.73.177,59666,***HIDDEN***
-LOG_00005,2026-09-06 12:23:35.890530,Accepted password,oracle,190.168.73.177,51948,***HIDDEN***
-LOG_00006,2026-09-06 12:26:09.213864,Accepted password,backup,190.168.73.177,55011,***HIDDEN***
-LOG_00007,2026-09-06 12:26:11.918648,Accepted password,pi,190.168.73.177,58589,***HIDDEN***

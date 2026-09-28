@@ -28,6 +28,18 @@ header {
   margin: 0 auto;
 }
 header h1 { margin: 0 0 4px; font-size: 1.6rem; }
+.version-badge {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 8px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-family: var(--mono);
+  background: rgba(91, 157, 255, 0.14);
+  color: var(--accent);
+}
 .subtitle { color: var(--text-dim); margin: 0; font-size: 0.92rem; }
 
 main { max-width: 1000px; margin: 0 auto; padding: 0 24px 48px; }
