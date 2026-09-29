@@ -1,15 +1,18 @@
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SSH Brute-Force Detector — Model Test (v3)</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSH Brute-Force Detector — Model Test (v3)</title>
+  <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
   <header>
     <h1>SSH Brute-Force Detector <span class="version-badge">v3</span></h1>
-    <p class="subtitle">ตรวจจับพฤติกรรมโจมตี SSH ด้วย session + IP-level + cross-IP time-window features — ประมวลผลทั้งหมดในเบราว์เซอร์ ไม่มีข้อมูลถูกส่งออกไปที่ไหน</p>
+    <p class="subtitle">ตรวจจับพฤติกรรมโจมตี SSH ด้วย session + IP-level + cross-IP time-window features —
+      ประมวลผลทั้งหมดในเบราว์เซอร์ ไม่มีข้อมูลถูกส่งออกไปที่ไหน</p>
   </header>
 
   <main>
@@ -34,130 +37,159 @@
           <span class="hint">ต่ำ = recall สูงขึ้น (จับ attack ได้มากขึ้น แต่ false positive มากขึ้น)</span>
         </div>
       </div>
-      <p id="status-line" class="status-line"><span id="status-spinner" class="spinner hidden"></span><span id="status-text"></span></p>
+      <p id="status-line" class="status-line"><span id="status-spinner" class="spinner hidden"></span><span
+          id="status-text"></span></p>
     </section>
 
     <section id="test-suite-panel" class="panel">
       <h2>ชุดไฟล์ทดสอบ (10 ไฟล์)</h2>
-      <p class="hint">ลากการ์ดด้านล่างไปวางที่ช่องอัปโหลดด้านบนได้เลย หรือกด "โหลดเข้าเครื่องมือ" (รันผ่านโมเดลทันที) / "ดาวน์โหลด" (เซฟไฟล์ลงเครื่อง) — 3 ไฟล์สุดท้ายเป็นพฤติกรรมใหม่ที่ v3 เพิ่มเข้ามา ซึ่ง v2 มองไม่เห็น</p>
+      <p class="hint">ลากการ์ดด้านล่างไปวางที่ช่องอัปโหลดด้านบนได้เลย หรือกด "โหลดเข้าเครื่องมือ" (รันผ่านโมเดลทันที) /
+        "ดาวน์โหลด" (เซฟไฟล์ลงเครื่อง) — 3 ไฟล์สุดท้ายเป็นพฤติกรรมใหม่ที่ v3 เพิ่มเข้ามา ซึ่ง v2 มองไม่เห็น</p>
       <div class="test-suite-grid">
 
-        <div class="test-card" draggable="true" data-file="test_logs/01_legit_baseline.csv" data-name="01_legit_baseline.csv">
+        <div class="test-card" draggable="true" data-file="test_logs/01_legit_baseline.csv"
+          data-name="01_legit_baseline.csv">
           <div class="test-card-head">
             <span class="tag tag-safe">SAFE</span>
             <h3>Baseline ปกติ</h3>
           </div>
           <p>Login สำเร็จของพนักงานหลายคน หลาย IP ไม่มี fail เลย — เช็ค false positive พื้นฐาน</p>
           <div class="test-card-actions">
-            <button type="button" class="btn-load" data-file="test_logs/01_legit_baseline.csv" data-name="01_legit_baseline.csv">โหลดเข้าเครื่องมือ</button>
+            <button type="button" class="btn-load" data-file="test_logs/01_legit_baseline.csv"
+              data-name="01_legit_baseline.csv">โหลดเข้าเครื่องมือ</button>
             <a href="test_logs/01_legit_baseline.csv" download class="btn-download">ดาวน์โหลด</a>
           </div>
         </div>
 
-        <div class="test-card" draggable="true" data-file="test_logs/02_legit_typo_noisy_user.csv" data-name="02_legit_typo_noisy_user.csv">
+        <div class="test-card" draggable="true" data-file="test_logs/02_legit_typo_noisy_user.csv"
+          data-name="02_legit_typo_noisy_user.csv">
           <div class="test-card-head">
             <span class="tag tag-safe">HARD NEGATIVE</span>
             <h3>User พิมพ์รหัสผิดบ่อย</h3>
           </div>
           <p>user จริงพิมพ์รหัสผิดหลายครั้งก่อนสำเร็จ — ต้องไม่ over-flag คนขี้ลืมรหัส</p>
           <div class="test-card-actions">
-            <button type="button" class="btn-load" data-file="test_logs/02_legit_typo_noisy_user.csv" data-name="02_legit_typo_noisy_user.csv">โหลดเข้าเครื่องมือ</button>
+            <button type="button" class="btn-load" data-file="test_logs/02_legit_typo_noisy_user.csv"
+              data-name="02_legit_typo_noisy_user.csv">โหลดเข้าเครื่องมือ</button>
             <a href="test_logs/02_legit_typo_noisy_user.csv" download class="btn-download">ดาวน์โหลด</a>
           </div>
         </div>
 
-        <div class="test-card" draggable="true" data-file="test_logs/03_legit_multi_ip_roaming.csv" data-name="03_legit_multi_ip_roaming.csv">
+        <div class="test-card" draggable="true" data-file="test_logs/03_legit_multi_ip_roaming.csv"
+          data-name="03_legit_multi_ip_roaming.csv">
           <div class="test-card-head">
             <span class="tag tag-safe">HARD NEGATIVE · NEW</span>
             <h3>User Roaming หลาย IP</h3>
           </div>
-          <p>user คนเดียว login สำเร็จจากหลาย IP ในเวลาไม่กี่ชั่วโมง (มือถือ/ทำงานนอกสถานที่) — "หลาย IP" อย่างเดียวไม่ควรแปลว่าน่าสงสัย</p>
+          <p>user คนเดียว login สำเร็จจากหลาย IP ในเวลาไม่กี่ชั่วโมง (มือถือ/ทำงานนอกสถานที่) — "หลาย IP"
+            อย่างเดียวไม่ควรแปลว่าน่าสงสัย</p>
           <div class="test-card-actions">
-            <button type="button" class="btn-load" data-file="test_logs/03_legit_multi_ip_roaming.csv" data-name="03_legit_multi_ip_roaming.csv">โหลดเข้าเครื่องมือ</button>
+            <button type="button" class="btn-load" data-file="test_logs/03_legit_multi_ip_roaming.csv"
+              data-name="03_legit_multi_ip_roaming.csv">โหลดเข้าเครื่องมือ</button>
             <a href="test_logs/03_legit_multi_ip_roaming.csv" download class="btn-download">ดาวน์โหลด</a>
           </div>
         </div>
 
-        <div class="test-card" draggable="true" data-file="test_logs/04_shared_ip_office.csv" data-name="04_shared_ip_office.csv">
+        <div class="test-card" draggable="true" data-file="test_logs/04_shared_ip_office.csv"
+          data-name="04_shared_ip_office.csv">
           <div class="test-card-head">
             <span class="tag tag-safe">HARD NEGATIVE</span>
             <h3>Shared-IP Office/NAT</h3>
           </div>
           <p>IP office เดียว หลายคน login สำเร็จ — ต้องไม่ถูก flag ทั้งที่ username หลากหลายบน IP เดียว</p>
           <div class="test-card-actions">
-            <button type="button" class="btn-load" data-file="test_logs/04_shared_ip_office.csv" data-name="04_shared_ip_office.csv">โหลดเข้าเครื่องมือ</button>
+            <button type="button" class="btn-load" data-file="test_logs/04_shared_ip_office.csv"
+              data-name="04_shared_ip_office.csv">โหลดเข้าเครื่องมือ</button>
             <a href="test_logs/04_shared_ip_office.csv" download class="btn-download">ดาวน์โหลด</a>
           </div>
         </div>
 
-        <div class="test-card" draggable="true" data-file="test_logs/05_burst_bruteforce_obvious.csv" data-name="05_burst_bruteforce_obvious.csv">
+        <div class="test-card" draggable="true" data-file="test_logs/05_burst_bruteforce_obvious.csv"
+          data-name="05_burst_bruteforce_obvious.csv">
           <div class="test-card-head">
             <span class="tag tag-attack">ATTACK</span>
             <h3>Burst Brute Force (ชัดเจน)</h3>
           </div>
           <p>IP เดียวยิง failed password รัวๆ ใส่ account เดียว ไม่มี success เลย — ควรจับได้เกือบ 100%</p>
           <div class="test-card-actions">
-            <button type="button" class="btn-load" data-file="test_logs/05_burst_bruteforce_obvious.csv" data-name="05_burst_bruteforce_obvious.csv">โหลดเข้าเครื่องมือ</button>
+            <button type="button" class="btn-load" data-file="test_logs/05_burst_bruteforce_obvious.csv"
+              data-name="05_burst_bruteforce_obvious.csv">โหลดเข้าเครื่องมือ</button>
             <a href="test_logs/05_burst_bruteforce_obvious.csv" download class="btn-download">ดาวน์โหลด</a>
           </div>
         </div>
 
-        <div class="test-card" draggable="true" data-file="test_logs/06_focused_bruteforce_single_account.csv" data-name="06_focused_bruteforce_single_account.csv">
+        <div class="test-card" draggable="true" data-file="test_logs/06_focused_bruteforce_single_account.csv"
+          data-name="06_focused_bruteforce_single_account.csv">
           <div class="test-card-head">
             <span class="tag tag-attack">ATTACK</span>
             <h3>Focused Brute Force</h3>
           </div>
-          <p>หลาย password ถูกยิงใส่ account เดียว จำนวน fail/จังหวะเวลาจงใจให้ใกล้เคียงกับ user ที่พิมพ์ผิดจริง — โมเดลต้องแยกจากพฤติกรรมรวม ไม่ใช่แค่นับ fail</p>
+          <p>หลาย password ถูกยิงใส่ account เดียว จำนวน fail/จังหวะเวลาจงใจให้ใกล้เคียงกับ user ที่พิมพ์ผิดจริง —
+            โมเดลต้องแยกจากพฤติกรรมรวม ไม่ใช่แค่นับ fail</p>
           <div class="test-card-actions">
-            <button type="button" class="btn-load" data-file="test_logs/06_focused_bruteforce_single_account.csv" data-name="06_focused_bruteforce_single_account.csv">โหลดเข้าเครื่องมือ</button>
+            <button type="button" class="btn-load" data-file="test_logs/06_focused_bruteforce_single_account.csv"
+              data-name="06_focused_bruteforce_single_account.csv">โหลดเข้าเครื่องมือ</button>
             <a href="test_logs/06_focused_bruteforce_single_account.csv" download class="btn-download">ดาวน์โหลด</a>
           </div>
         </div>
 
-        <div class="test-card" draggable="true" data-file="test_logs/07_password_spray_multi_account.csv" data-name="07_password_spray_multi_account.csv">
+        <div class="test-card" draggable="true" data-file="test_logs/07_password_spray_multi_account.csv"
+          data-name="07_password_spray_multi_account.csv">
           <div class="test-card-head">
             <span class="tag tag-attack">ATTACK</span>
             <h3>Password Spraying</h3>
           </div>
           <p>password ที่ใช้บ่อยไม่กี่ตัว กระจายยิงใส่หลาย username จาก IP เดียวหรือไม่กี่ IP</p>
           <div class="test-card-actions">
-            <button type="button" class="btn-load" data-file="test_logs/07_password_spray_multi_account.csv" data-name="07_password_spray_multi_account.csv">โหลดเข้าเครื่องมือ</button>
+            <button type="button" class="btn-load" data-file="test_logs/07_password_spray_multi_account.csv"
+              data-name="07_password_spray_multi_account.csv">โหลดเข้าเครื่องมือ</button>
             <a href="test_logs/07_password_spray_multi_account.csv" download class="btn-download">ดาวน์โหลด</a>
           </div>
         </div>
 
-        <div class="test-card" draggable="true" data-file="test_logs/08_credential_stuffing_leaked_creds.csv" data-name="08_credential_stuffing_leaked_creds.csv">
+        <div class="test-card" draggable="true" data-file="test_logs/08_credential_stuffing_leaked_creds.csv"
+          data-name="08_credential_stuffing_leaked_creds.csv">
           <div class="test-card-head">
             <span class="tag tag-attack">ATTACK · NEW</span>
             <h3>Credential Stuffing</h3>
           </div>
-          <p>ใช้คู่ username:password ที่ "รู้อยู่แล้ว" (leaked credentials) — fail ต่อ account น้อยกว่าการเดาสุ่มมาก สำเร็จปนอยู่กลางๆ ไม่ใช่ท้ายสุด</p>
+          <p>ใช้คู่ username:password ที่ "รู้อยู่แล้ว" (leaked credentials) — fail ต่อ account น้อยกว่าการเดาสุ่มมาก
+            สำเร็จปนอยู่กลางๆ ไม่ใช่ท้ายสุด</p>
           <div class="test-card-actions">
-            <button type="button" class="btn-load" data-file="test_logs/08_credential_stuffing_leaked_creds.csv" data-name="08_credential_stuffing_leaked_creds.csv">โหลดเข้าเครื่องมือ</button>
+            <button type="button" class="btn-load" data-file="test_logs/08_credential_stuffing_leaked_creds.csv"
+              data-name="08_credential_stuffing_leaked_creds.csv">โหลดเข้าเครื่องมือ</button>
             <a href="test_logs/08_credential_stuffing_leaked_creds.csv" download class="btn-download">ดาวน์โหลด</a>
           </div>
         </div>
 
-        <div class="test-card" draggable="true" data-file="test_logs/09_persistent_multiday_stealth.csv" data-name="09_persistent_multiday_stealth.csv">
+        <div class="test-card" draggable="true" data-file="test_logs/09_persistent_multiday_stealth.csv"
+          data-name="09_persistent_multiday_stealth.csv">
           <div class="test-card-head">
             <span class="tag tag-attack">ATTACK · NEW</span>
             <h3>Persistent Multi-day (Stealth)</h3>
           </div>
-          <p>IP เดิมกลับมาซ้ำๆ ~30 sessions กระจายกว่า 2 สัปดาห์ แต่ละ session สั้น/fail น้อยจนดูไม่น่าสงสัยทีละครั้ง — ต้องอาศัย <strong>IP-level feature</strong> (จำนวน session สะสม/ช่วงวันที่ยังโผล่มา) ถึงจะเห็นภาพรวม ฟีเจอร์ระดับ session อย่างเดียวจับไม่ได้</p>
+          <p>IP เดิมกลับมาซ้ำๆ ~30 sessions กระจายกว่า 2 สัปดาห์ แต่ละ session สั้น/fail น้อยจนดูไม่น่าสงสัยทีละครั้ง —
+            ต้องอาศัย <strong>IP-level feature</strong> (จำนวน session สะสม/ช่วงวันที่ยังโผล่มา) ถึงจะเห็นภาพรวม
+            ฟีเจอร์ระดับ session อย่างเดียวจับไม่ได้</p>
           <div class="test-card-actions">
-            <button type="button" class="btn-load" data-file="test_logs/09_persistent_multiday_stealth.csv" data-name="09_persistent_multiday_stealth.csv">โหลดเข้าเครื่องมือ</button>
+            <button type="button" class="btn-load" data-file="test_logs/09_persistent_multiday_stealth.csv"
+              data-name="09_persistent_multiday_stealth.csv">โหลดเข้าเครื่องมือ</button>
             <a href="test_logs/09_persistent_multiday_stealth.csv" download class="btn-download">ดาวน์โหลด</a>
           </div>
         </div>
 
-        <div class="test-card" draggable="true" data-file="test_logs/10_coordinated_botnet_spike.csv" data-name="10_coordinated_botnet_spike.csv">
+        <div class="test-card" draggable="true" data-file="test_logs/10_coordinated_botnet_spike.csv"
+          data-name="10_coordinated_botnet_spike.csv">
           <div class="test-card-head">
             <span class="tag tag-attack">ATTACK · NEW</span>
             <h3>Coordinated Botnet Spike</h3>
           </div>
-          <p>~25 IP ต่างกัน ยิง account เป้าหมายเดียวกันพร้อมกันภายในไม่กี่นาที แต่ละ IP เองดูเหมือน burst เล็กๆ ทั่วไป — ต้องอาศัย <strong>cross-IP time-window feature</strong> (จำนวน IP อื่นที่ยิง target เดียวกันในกรอบ 15 นาที) ถึงจะเห็นการประสานงาน</p>
+          <p>~25 IP ต่างกัน ยิง account เป้าหมายเดียวกันพร้อมกันภายในไม่กี่นาที แต่ละ IP เองดูเหมือน burst เล็กๆ ทั่วไป
+            — ต้องอาศัย <strong>cross-IP time-window feature</strong> (จำนวน IP อื่นที่ยิง target เดียวกันในกรอบ 15
+            นาที) ถึงจะเห็นการประสานงาน</p>
           <div class="test-card-actions">
-            <button type="button" class="btn-load" data-file="test_logs/10_coordinated_botnet_spike.csv" data-name="10_coordinated_botnet_spike.csv">โหลดเข้าเครื่องมือ</button>
+            <button type="button" class="btn-load" data-file="test_logs/10_coordinated_botnet_spike.csv"
+              data-name="10_coordinated_botnet_spike.csv">โหลดเข้าเครื่องมือ</button>
             <a href="test_logs/10_coordinated_botnet_spike.csv" download class="btn-download">ดาวน์โหลด</a>
           </div>
         </div>
@@ -167,12 +199,13 @@
 
     <section id="live-console-panel" class="panel">
       <h2>ลองยิงเอง — Live Attack Console <span class="version-badge">จำลอง</span></h2>
-      <p class="hint">พิมพ์เดา password เองเหมือน SSH จริง หรือกดปุ่มให้ระบบจำลองพฤติกรรมสำเร็จรูปให้ดู — ทุก attempt จะถูกให้คะแนนโดยโมเดลทันที ประมวลผลในเบราว์เซอร์ทั้งหมด ไม่เชื่อมต่อเซิร์ฟเวอร์จริงและไม่มีข้อมูลถูกส่งออกไปที่ไหน (โหมดนี้ทำงานฝั่ง client เสมอ ไม่ว่า config.js จะตั้งค่า backend ไว้หรือไม่) หมายเหตุ: ถ้าพิมพ์เอง สกอร์อาจขึ้นช้ากว่าที่คิด เพราะจังหวะพิมพ์ของคนจริงช้ากว่าการโจมตีอัตโนมัติมาก — ลองกด preset ดูเพื่อเห็นความต่าง</p>
+      <p class="hint">พิมพ์เดา password เองเหมือน SSH จริง หรือลองกด preset ดูเพื่อจำลอง live attack</p>
 
       <div class="console-layout">
         <div class="terminal" id="live-terminal">
           <div class="terminal-header">
-            <span class="terminal-dot dot-r"></span><span class="terminal-dot dot-y"></span><span class="terminal-dot dot-g"></span>
+            <span class="terminal-dot dot-r"></span><span class="terminal-dot dot-y"></span><span
+              class="terminal-dot dot-g"></span>
             <span class="terminal-title">simulated-ssh — <span id="terminal-ip">-</span></span>
           </div>
           <div class="terminal-body" id="terminal-body"></div>
@@ -185,7 +218,9 @@
         <div class="live-side-panel">
           <div class="gauge-wrap">
             <div class="gauge-label">Risk Score (live)</div>
-            <div class="gauge-bar"><div class="gauge-fill" id="live-gauge-fill"></div></div>
+            <div class="gauge-bar">
+              <div class="gauge-fill" id="live-gauge-fill"></div>
+            </div>
             <div class="gauge-value" id="live-gauge-value">0%</div>
             <div class="gauge-verdict" id="live-gauge-verdict">รอข้อมูล...</div>
           </div>
@@ -207,10 +242,14 @@
 
     <section id="summary-panel" class="panel hidden">
       <div class="summary-cards">
-        <div class="card"><span class="card-value" id="stat-sessions">0</span><span class="card-label">Sessions ทั้งหมด</span></div>
-        <div class="card card-attack"><span class="card-value" id="stat-attack">0</span><span class="card-label">ถูก flag ว่า Attack</span></div>
-        <div class="card"><span class="card-value" id="stat-legit">0</span><span class="card-label">ถือว่าปกติ</span></div>
-        <div class="card"><span class="card-value" id="stat-ips">0</span><span class="card-label">Source IP ไม่ซ้ำ</span></div>
+        <div class="card"><span class="card-value" id="stat-sessions">0</span><span class="card-label">Sessions
+            ทั้งหมด</span></div>
+        <div class="card card-attack"><span class="card-value" id="stat-attack">0</span><span class="card-label">ถูก
+            flag ว่า Attack</span></div>
+        <div class="card"><span class="card-value" id="stat-legit">0</span><span class="card-label">ถือว่าปกติ</span>
+        </div>
+        <div class="card"><span class="card-value" id="stat-ips">0</span><span class="card-label">Source IP
+            ไม่ซ้ำ</span></div>
       </div>
     </section>
 
@@ -240,7 +279,9 @@
   </main>
 
   <footer>
-    <p>โมเดลเทรนจากข้อมูล synthetic v3 (session + IP-level cross-session + cross-IP time-window features) ยังไม่ได้ validate กับ traffic โจมตีจริง — ใช้เป็นเครื่องมือทดสอบ/สาธิต ไม่ใช่ระบบ production ฟีเจอร์ IP-level และ time-window คำนวณจากไฟล์ที่อัปโหลดทั้งไฟล์เท่านั้น (ไม่มี state ข้ามไฟล์)</p>
+    <p>โมเดลเทรนจากข้อมูล synthetic v3 (session + IP-level cross-session + cross-IP time-window features) ยังไม่ได้
+      validate กับ traffic โจมตีจริง — ใช้เป็นเครื่องมือทดสอบ/สาธิต ไม่ใช่ระบบ production ฟีเจอร์ IP-level และ
+      time-window คำนวณจากไฟล์ที่อัปโหลดทั้งไฟล์เท่านั้น (ไม่มี state ข้ามไฟล์)</p>
   </footer>
 
   <script src="config.js"></script>
@@ -249,4 +290,5 @@
   <script src="js/app.js"></script>
   <script src="js/live-console.js"></script>
 </body>
+
 </html>
