@@ -38,26 +38,28 @@ Commit and push that one-line change — Render auto-deploys on push
 without doing anything else.
 
 Leaving `API_BASE_URL` empty keeps the page running the **client-side**
-models (`js/model.js` + `model/forest.json` for Attack/Legit,
-`model/forest_type.json` for the attack type) instead — both modes work from
+model (`js/model.js` + `model/forest.json`) instead — both modes work from
 the same codebase, so you always have a working fallback even if the
 backend is asleep (see below).
 
 ## 4. Known Render free-tier behavior
 
 - **Backend spins down after 15 minutes idle.** The first request after
-  that takes ~1 minute while it wakes up — the page will just look like
-  it's hanging; there's no separate loading state for this in `app.js` yet.
+  that takes ~1 minute while it wakes up (the page shows its spinner the whole
+  time). Open `/health` a few minutes before a demo to wake it.
 - **750 free instance-hours/month** shared across your account. A single
   low-traffic demo service won't come close to this.
 - **Static frontend has no spin-down or hour limit.**
 - CORS is limited to `https://sshml-frontend.onrender.com` and
   `http://localhost:8000` (`ALLOWED_ORIGINS` in `backend/main.py`). Add an
   origin there if the frontend moves.
-- The backend loads two models: `ssh_bruteforce_model_v3.joblib` (stage 1,
-  required) and `ssh_attack_type_model_v3.joblib` (stage 2, optional). If
-  the second file is missing it still serves Attack/Legit, and
-  `GET /health` reports `"type_model_loaded": false`.
+- The backend loads ONE model file, `backend/ssh_bruteforce_multiclass.joblib`
+  (written by `v3/train_multiclass_model.py`, together with
+  `web/model/forest.json` — always deploy both from the same training run).
+  `GET /health` reports the loaded model name.
+- `POST /predict` defaults to a 10-minute session gap (the gap the model was
+  trained with). Large uploads (~20k rows) take several seconds on the free
+  instance.
 
 ## 5. Test before + after deploying
 
@@ -66,7 +68,7 @@ Local backend test (already verified working):
 cd backend
 pip install -r requirements.txt
 uvicorn main:app --reload
-# then POST a CSV to http://127.0.0.1:8000/predict?gap_minutes=30
+# then POST a CSV to http://127.0.0.1:8000/predict?gap_minutes=10
 ```
 
 Local frontend test: `web/run.bat`, or `cd web && python -m http.server 8000`.

@@ -1,18 +1,19 @@
 """
-main.py -- FastAPI backend for the SSH brute-force detector (v3 model:
-session + IP-level + cross-IP time-window features; see pipeline.py).
+main.py -- FastAPI backend for the SSH brute-force detector.
+
+Model (v4): ONE multiclass Random Forest over the 16 session + IP-level +
+cross-IP time-window features (see pipeline.py). It returns, per session,
+the probability of each of 11 classes (3 legit behaviours, 8 attack types);
+risk = sum of the attack-class probabilities.
 
 Endpoints:
-  GET  /health           liveness check (Render pings this kind of thing)
-  POST /predict           upload a log CSV, get back per-session risk scores
-                          (+ stage-2 attack type for each session)
+  GET  /health    liveness check (Render pings this kind of thing)
+  POST /predict   upload a log CSV, get back per-session risk + class
 
 Run locally:
     uvicorn main:app --reload
 Deploy on Render: see ../render.yaml
 """
-
-import os
 
 import joblib
 from fastapi import FastAPI, UploadFile, File, HTTPException, Query
@@ -20,8 +21,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from pipeline import load_log_dataframe, segment_sessions, build_session_results
 
-MODEL_PATH = "ssh_bruteforce_model_v3.joblib"
-TYPE_MODEL_PATH = "ssh_attack_type_model_v3.joblib"  # stage 2 (optional)
+MODEL_PATH = "ssh_bruteforce_multiclass.joblib"
 
 app = FastAPI(title="SSH Brute-Force Detector API")
 
@@ -39,34 +39,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-_model_bundle = None
-_type_bundle = None
+_bundle = None
 
 
 @app.on_event("startup")
 def load_model():
-    global _model_bundle, _type_bundle
-    _model_bundle = joblib.load(MODEL_PATH)
-    if os.path.exists(TYPE_MODEL_PATH):
-        try:
-            _type_bundle = joblib.load(TYPE_MODEL_PATH)
-        except Exception as e:  # stage 2 is optional: keep serving Attack/Legit
-            print(f"WARNING: could not load {TYPE_MODEL_PATH}: {e}")
-            _type_bundle = None
+    global _bundle
+    _bundle = joblib.load(MODEL_PATH)
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "model_loaded": _model_bundle is not None,
-            "type_model_loaded": _type_bundle is not None}
+    return {"status": "ok", "model_loaded": _bundle is not None,
+            "model": _bundle.get("model_name") if _bundle else None}
 
 
 @app.post("/predict")
 async def predict(
     file: UploadFile = File(...),
-    gap_minutes: float = Query(30, ge=1, le=1440, description="Session-gap threshold in minutes"),
+    gap_minutes: float = Query(10, ge=1, le=1440,
+                               description="Session-gap threshold in minutes (the model was trained with 10)"),
 ):
-    if _model_bundle is None:
+    if _bundle is None:
         raise HTTPException(503, "Model not loaded yet")
 
     raw = await file.read()
@@ -75,16 +69,19 @@ async def predict(
     except ValueError as e:
         raise HTTPException(400, str(e))
     if len(df) == 0:
-        raise HTTPException(400, "No rows found in the uploaded file")
+        raise HTTPException(400, "No readable rows found in the uploaded file")
 
     df = segment_sessions(df, gap_minutes)
-    results = build_session_results(df, _model_bundle["model"], _type_bundle)
+    results = build_session_results(df, _bundle)
 
     return {
         "n_rows": len(df),
         "n_sessions": len(results),
         "gap_minutes": gap_minutes,
-        "feature_columns": _model_bundle["feature_columns"],
-        "type_classes": _type_bundle["classes"] if _type_bundle else None,
+        "feature_columns": _bundle["feature_columns"],
+        "classes": _bundle["classes"],
+        "attack_classes": _bundle["attack_classes"],
+        "legit_classes": _bundle["legit_classes"],
+        "threshold": _bundle["threshold"],
         "sessions": results,
     }

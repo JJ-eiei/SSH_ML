@@ -1,5 +1,5 @@
 """
-pipeline.py (v3) -- shared log-parsing / session-segmentation /
+pipeline.py (v3 features, v4 multiclass model) -- shared log-parsing / session-segmentation /
 feature-extraction logic for the backend API. This is the Python twin of
 web/js/features.js; keep the two in sync if either changes.
 
@@ -39,13 +39,34 @@ FEATURE_COLUMNS = [
 ]
 
 
+ISO_TS = r"^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:[.,]\d+)?)?)?\s*(?:Z|[+-]\d{2}:?\d{2})?$"
+
+
 def load_log_dataframe(file_bytes: bytes) -> pd.DataFrame:
+    """Same reading rules as web/js/features.js loadLogRows():
+    every field is read as text and trimmed (no "NA"/"null" -> missing),
+    only ISO-style timestamps are accepted, rows without a timestamp or IP
+    are skipped. Times with a zone are converted to UTC; times without one
+    are taken as-is (all that matters for features is the time BETWEEN
+    events). The original timestamp text is kept for display."""
     import io
-    df = pd.read_csv(io.BytesIO(file_bytes))
+    try:
+        df = pd.read_csv(io.BytesIO(file_bytes), dtype=str, keep_default_na=False, encoding="utf-8-sig")
+    except Exception as e:  # not a CSV at all
+        raise ValueError(f"Could not read the file as CSV: {e}")
+    df.columns = [str(c).strip() for c in df.columns]
     missing = [c for c in REQUIRED_COLUMNS if c not in df.columns]
     if missing:
         raise ValueError(f"CSV is missing required column(s): {', '.join(missing)}")
-    df["Timestamp"] = pd.to_datetime(df["Timestamp"])
+    for c in REQUIRED_COLUMNS:
+        df[c] = df[c].astype(str).str.strip()
+    raw = df["Timestamp"]
+    ok = raw.str.match(ISO_TS, case=False)
+    norm = (raw.where(ok, None).str.replace(",", ".", regex=False)
+            .str.replace(r"\s+(?=[Zz+-])", "", regex=True))
+    df["Timestamp_raw"] = raw
+    df["Timestamp"] = pd.to_datetime(norm, errors="coerce", utc=True, format="ISO8601").dt.tz_localize(None)
+    df = df[df["Timestamp"].notna() & (df["Source_IP"] != "")].copy()
     # Password, if present, is intentionally never used below -- leakage, and
     # real production logs won't have it anyway.
     return df
@@ -53,21 +74,16 @@ def load_log_dataframe(file_bytes: bytes) -> pd.DataFrame:
 
 def segment_sessions(df: pd.DataFrame, gap_minutes: float) -> pd.DataFrame:
     """Time-gap segmentation per Source_IP -- a judgment call, not ground
-    truth (see README / project notes). Assigns a Session_ID column."""
+    truth (see README / project notes). Assigns a Session_ID column.
+    A new session starts when the gap to the previous event from the same
+    IP is MORE than gap_minutes (same rule as the JS and the generator).
+    Stable sort, so events with equal timestamps keep file order (as in JS)."""
     gap = pd.Timedelta(minutes=gap_minutes)
-    df = df.sort_values(["Source_IP", "Timestamp"]).reset_index(drop=True)
-    session_id = np.zeros(len(df), dtype=int)
-    counter = 0
-    prev_ip = None
-    prev_ts = None
-    for i, row in df.iterrows():
-        if row["Source_IP"] != prev_ip or (row["Timestamp"] - prev_ts) > gap:
-            counter += 1
-        session_id[i] = counter
-        prev_ip = row["Source_IP"]
-        prev_ts = row["Timestamp"]
+    df = df.sort_values(["Source_IP", "Timestamp"], kind="mergesort").reset_index(drop=True)
+    new_ip = df["Source_IP"].ne(df["Source_IP"].shift())
+    new_gap = df["Timestamp"].diff() > gap
     df = df.copy()
-    df["Session_ID"] = session_id
+    df["Session_ID"] = (new_ip | new_gap).cumsum().astype(int)
     return df
 
 
@@ -81,7 +97,7 @@ def extract_session_features(g: pd.DataFrame) -> pd.Series:
     """Session-level features only. Mirrors extract_session_features() in
     v3/extract_features_v3.py exactly (event vocabulary, ratios, the fixed
     attempts_per_minute rate floor, ends_after_success)."""
-    g = g.sort_values("Timestamp")
+    g = g.sort_values("Timestamp", kind="mergesort")
     n_events = len(g)
     n_failed = int((g["Event"] == "Failed password").sum())
     n_invalid = int((g["Event"] == "Invalid user").sum())
@@ -176,46 +192,52 @@ def _build_botnet_window_feature(sessions: pd.DataFrame, window_minutes=BOTNET_W
     return result
 
 
-def predict_attack_types(sessions: pd.DataFrame, type_bundle) -> list[dict]:
-    """Stage 2: which kind of attack, from the same 16 features. Computed
-    for every session; the frontend only SHOWS it for sessions that stage 1
-    flags at the current threshold (the type is meaningless for legit ones)."""
-    model = type_bundle["model"]
-    low = type_bundle.get("low_confidence", 0.6)
-    proba = model.predict_proba(sessions[type_bundle["feature_columns"]])
-    classes = list(model.classes_)
-    out = []
-    for row in proba:
-        order = np.argsort(row)[::-1]
-        out.append({
-            "type": classes[order[0]],
-            "confidence": float(row[order[0]]),
-            "low_confidence": bool(row[order[0]] < low),
-            "ranked": [{"type": classes[k], "p": float(row[k])} for k in order[:3]],
-        })
-    return out
+def decide(class_proba: np.ndarray, classes, attack_classes, legit_classes, threshold: float):
+    """Decision rule -- identical to v3/train_multiclass_model.py and
+    web/js/model.js. risk = sum of attack-class probabilities; at/above the
+    threshold the label is the most likely ATTACK class, otherwise the most
+    likely LEGIT class (so the label never contradicts Attack/Legit).
+    label_confidence = P(label) / P(label's group)."""
+    classes = list(classes)
+    a_idx = [classes.index(c) for c in attack_classes]
+    l_idx = [classes.index(c) for c in legit_classes]
+    # rounded so float noise can't flip the decision at threshold 1.00
+    risk = np.round(class_proba[:, a_idx].sum(axis=1), 9)
+    legit_mass = class_proba[:, l_idx].sum(axis=1)
+    is_attack = risk >= threshold
+    top_a = np.array(a_idx)[class_proba[:, a_idx].argmax(axis=1)]
+    top_l = np.array(l_idx)[class_proba[:, l_idx].argmax(axis=1)]
+    label_idx = np.where(is_attack, top_a, top_l)
+    group_mass = np.where(is_attack, risk, legit_mass)
+    conf = class_proba[np.arange(len(class_proba)), label_idx] / np.maximum(group_mass, 1e-12)
+    return risk, is_attack, [classes[i] for i in label_idx], conf
 
 
-def build_session_results(df: pd.DataFrame, model, type_bundle=None) -> list[dict]:
+def build_session_results(df: pd.DataFrame, bundle) -> list[dict]:
     """df must already have Session_ID (from segment_sessions). Computes
     session-level + IP-level + cross-IP time-window features together (the
     latter two need every session in the file, not just one group), scores
-    each session, and returns one dict per session for the frontend's
-    table + expandable evidence view. If type_bundle is given, each session
-    also gets an "attack_type" prediction (stage 2)."""
+    each session with the multiclass model, and returns one dict per
+    session for the frontend's table + expandable evidence view.
+
+    Each session carries the full `class_proba` so the frontend can re-apply
+    the decision rule when the user moves the threshold slider."""
+    model = bundle["model"]
     sessions = df.groupby("Session_ID").apply(extract_session_features).reset_index()
 
     ip_feats = _build_ip_features(df, df[["Source_IP", "Session_ID"]].drop_duplicates())
     sessions = sessions.merge(ip_feats, on="Source_IP", how="left")
     sessions["distinct_ips_same_target_15min"] = _build_botnet_window_feature(sessions)
 
-    X = sessions[FEATURE_COLUMNS]
-    probas = model.predict_proba(X)[:, 1]
-    types = predict_attack_types(sessions, type_bundle) if type_bundle else [None] * len(sessions)
+    class_proba = model.predict_proba(sessions[bundle["feature_columns"]])
+    classes = list(model.classes_)
+    risk, is_attack, labels, conf = decide(class_proba, classes, bundle["attack_classes"],
+                                           bundle["legit_classes"], bundle["threshold"])
 
     results = []
-    raw_by_session = {sid: g.sort_values("Timestamp") for sid, g in df.groupby("Session_ID")}
-    for row, proba, attack_type in zip(sessions.itertuples(index=False), probas, types):
+    raw_by_session = {sid: g.sort_values("Timestamp", kind="mergesort")
+                      for sid, g in df.groupby("Session_ID")}
+    for idx, row in enumerate(sessions.itertuples(index=False)):
         g = raw_by_session[row.Session_ID]
         feats = {col: getattr(row, col) for col in FEATURE_COLUMNS}
         feats["n_events"] = int(row.n_events)
@@ -223,18 +245,18 @@ def build_session_results(df: pd.DataFrame, model, type_bundle=None) -> list[dic
             "session_id": int(row.Session_ID),
             "ip": row.Source_IP,
             "start": row.session_start.isoformat(),
-            "proba": float(proba),
-            "attack_type": attack_type,
-            "features":{k: (float(v) if isinstance(v, (np.floating, float)) else int(v))
-                         for k, v in feats.items()},
+            "proba": float(risk[idx]),          # risk score = P(any attack class)
+            "is_attack": bool(is_attack[idx]),   # at the model's default threshold
+            "label": labels[idx],
+            "label_confidence": float(conf[idx]),
+            "class_proba": {c: float(class_proba[idx, j]) for j, c in enumerate(classes)},
+            "features": {name: (float(v) if isinstance(v, (np.floating, float)) else int(v))
+                         for name, v in feats.items()},
+            # original timestamp text: the browser parses it with the same
+            # rule as client mode, so both modes show and match identical times
             "rows": [
-                {
-                    "ts": r["Timestamp"].isoformat(),
-                    "event": r["Event"],
-                    "username": r["Username"],
-                    "port": int(r["Source_Port"]),
-                }
-                for _, r in g.iterrows()
+                {"ts": ts, "event": ev, "username": user, "port": port}
+                for ts, ev, user, port in zip(g["Timestamp_raw"], g["Event"], g["Username"], g["Source_Port"])
             ],
         })
     results.sort(key=lambda r: r["proba"], reverse=True)

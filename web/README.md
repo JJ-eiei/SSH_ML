@@ -1,162 +1,120 @@
-# SSH Brute-Force Detector — model test page (v3)
+# SSH Brute-Force Detector — web app (v4)
 
-Plain HTML/CSS/JS, no build step, no backend required by default. All
-parsing, feature extraction, and model inference run in the browser.
+Plain HTML/CSS/JS, no build step. One multiclass Random Forest tells, for
+every SSH session in a log, **whether it is an attack and which behaviour it
+is**:
+
+| Group | Class | Shown as | MITRE ATT&CK |
+|---|---|---|---|
+| Legit | `legit_login` | Login ปกติ | – |
+| Legit | `legit_typo` | ผู้ใช้พิมพ์รหัสผิด | – |
+| Legit | `shared_ip_legit` | หลายคนใช้ IP ร่วม | – |
+| Attack | `burst_bruteforce` | Burst brute force | T1110.001 |
+| Attack | `focused_bruteforce` | Focused brute force | T1110.001 |
+| Attack | `large_dictionary_scanner` | Dictionary scanner | T1110.001 |
+| Attack | `low_and_slow` | Low-and-slow | T1110.001 |
+| Attack | `persistent_multiday_attacker` | Persistent multi-day | T1110.001 |
+| Attack | `coordinated_botnet_spike` | Botnet spike | T1110 |
+| Attack | `password_spray` | Password spraying | T1110.003 |
+| Attack | `credential_stuffing` | Credential stuffing | T1110.004 |
+
+**Decision rule** (identical in `js/model.js`, `../backend/pipeline.py` and
+`../v3/train_multiclass_model.py`): risk = sum of the 8 attack-class
+probabilities; `risk >= threshold` → Attack, labelled with the most likely
+attack class; otherwise Legit, labelled with the most likely legit class.
+Label confidence below 0.6 is shown as "ไม่แน่ใจ (ใกล้เคียง …)". Default
+threshold 0.57 (chosen by 5-fold CV on the training set), session gap 10
+minutes (the gap the training sessions were built with).
+
+Model results (see `../v3/ssh_multiclass_pipeline.ipynb`): Attack/Legit F1
+0.984 test / 0.985 OOD, 0 false positives on both, class macro-F1 0.991 /
+0.992. Synthetic data only — not validated on real traffic.
 
 ## Run it
 
-Double-clicking `index.html` will **not** work — Chrome/Edge block `fetch()`
-for local `file://` resources, and this page uses `fetch()` to load
-`model/forest.json` and the test logs. Serve it over `http://` instead:
+Serve over `http://` (Chrome/Edge block `fetch()` from `file://`):
+double-click `run.bat`, or `python -m http.server 8000` here and open
+`http://localhost:8000`.
 
-- **Easiest**: double-click `run.bat`. It starts `python -m http.server 8000`
-  in this folder and opens `http://localhost:8000` in your browser.
-- **Manual**: open a terminal here and run `python -m http.server 8000`,
-  then open `http://localhost:8000`.
+`config.js` decides where the model runs: `API_BASE_URL` set → the CSV is
+sent to the FastAPI backend; empty → everything runs in the browser
+(`js/model.js` + `model/forest.json`). Both give the same results (checked
+session by session: 2,905 sessions, 0 label mismatches, max risk difference
+3e-8). The Live Console and the log generator always run in the browser.
 
-## Live Attack Console
+## What the page does
 
-A third way to test the model, alongside uploading a file and loading a
-canned demo: a fake SSH terminal (`js/live-console.js`) where you type
-password guesses yourself, or click a preset (Burst / Focused / Password
-Spray / Credential Stuffing) to watch it play out automatically. Every
-attempt is scored live through the exact same `SSHFeatures`/`SSHModel`
-pipeline as everything else on this page — always client-side, regardless
-of `config.js`. Nothing is a real server or real auth; it only builds an
-in-memory log in the same schema the model expects and re-scores it after
-every line.
+1. **Upload a log** — CSV in the training format, or a **raw OpenSSH
+   auth.log / journalctl export** (converted to CSV in the browser by
+   `js/auth-log.js`). The expected formats are explained on the page under
+   "รูปแบบไฟล์ที่รองรับ".
+2. **Generate a new test log** (`js/log-generator.js`, `js/generator-ui.js`)
+   — pick any of the 11 behaviours and how many; IPs, times, ports and counts
+   are drawn fresh from a seeded RNG, never reusing IPs from the 10 demo
+   logs. The CSV given to the model has no labels; the answer key stays in
+   memory and the page grades the result per class ("ตรวจคำตอบเทียบเฉลย").
+   Both the CSV and the answer key can be downloaded.
+3. **10 demo test logs** (`test_logs/`) — 4 legit, 6 attacks.
+4. **Live Attack Console** (`js/live-console.js`) — type password guesses
+   or play a preset (Burst / Focused / Password Spray / Credential Stuffing)
+   and watch the risk score and behaviour label update after every attempt.
 
-Two things worth trying:
-- Type slowly by hand vs. run a preset — the risk score usually rises much
-  faster for the preset, because `attempts_per_minute` reflects real
-  automation speed vs. human typing speed. That gap *is* the signal.
-- After ~8 failed guesses a hint reveals the password. Log in successfully
-  and watch the score often *drop* even though most of the session was
-  fails — `ends_after_success` is one of the model's higher-weight
-  features, so "many fails then a clean success" reads closer to a
-  legit-typo user than a still-failing attacker. Worth pointing out when
-  demoing: it's a real, inspectable model behavior, not a bug.
+### Log generator: how it was checked
 
-Scope note: this only simulates a single attacking IP (manual or preset).
-It intentionally does not simulate a coordinated multi-IP botnet spike or a
-persistent multi-day campaign live in the terminal — those two behaviors
-are still fully demonstrated via the `09`/`10` canned test logs, which
-already carry the multi-session/multi-IP history those features need.
+The generator is a line-by-line port of `../v3/generate_v3_dataset.py`
+(ranges, probabilities, username pools; class mix weights 620:55 for
+legit_success:roaming and 480:70 for legit_typo:ambiguous_legit, as in the
+training data). `ambiguous_attack` (an attack generated to look exactly like a
+user mistyping) is not offered — it is not one of the model's classes.
 
-Preset timing: each preset logs the same attempt counts, inter-arrival
-ranges and success rates as the training generator
-(`../v3/generate_v3_dataset.py`). Lines still appear on screen 90 ms apart;
-only the logged timestamps follow the real pattern. An earlier version
-compressed Spray/Stuffing timing ~10x, which made them unlike anything in
-training and they scored as legit. Simulated 2,000 runs each after the fix:
-Burst, Focused, Spray flagged and typed correctly 100%, Stuffing 99.9%.
-Focused starts at 15 fails: below ~13 fails on a real-looking account the
-model can't separate it from a user mistyping (overlaps legit_typo by design).
+- Per-campaign statistics of JS vs Python generators over thousands of
+  campaigns: KS distance ≤ 0.03 for nearly all statistics.
+- Feature extraction in the browser reproduces the training features on the
+  raw OOD log for all 3,316 sessions (differences ≤ 1 ms of timestamp
+  precision).
+- Over 300 random "ผสมทุกแบบ" runs the page scores 99.7% on average; about
+  two thirds of runs are exactly 100%, the rest miss 1–2 sessions (mostly a
+  short focused brute force or a small spray session that looks like a
+  mistyping user). That is the model's real accuracy, not a generator bug.
 
-## What's new in v3
+### Live Console presets
 
-- **Event vocabulary expanded**: `Invalid user` and `Accepted publickey`,
-  on top of v2's `Failed password` / `Accepted password`.
-- **IP-level features**: aggregated across a Source_IP's entire history in
-  the uploaded file (`ip_session_count`, `ip_active_span_days`,
-  `ip_sessions_per_day`, `ip_total_events`) — catches persistent, low-volume
-  campaigns that look innocuous session-by-session.
-- **Cross-IP time-window feature**: `distinct_ips_same_target_15min` —
-  catches coordinated/botnet spikes where many different IPs hit the same
-  account within a short window; no single IP's session shows this alone.
-- Both new feature families are computed **from whatever is in the
-  uploaded file** — a self-contained demo log (one IP's full multi-day
-  campaign, or many IPs' bursts against one account) needs no external or
-  persistent state to score correctly. A production deployment scoring a
-  rolling window of live traffic would need this history to come from a
-  persistent store instead — see the notebook's closing section.
-- Deployed model switched from XGBoost (best by a 0.0003 PR-AUC margin) to
-  **RandomForest**, to keep the pure-JS tree-traversal engine (`js/model.js`,
-  unchanged from v2) — same verified-against-sklearn approach as before.
+Each preset logs the same attempt counts, timing and success rates as the
+training generator (lines still appear 90 ms apart on screen; only the logged
+timestamps follow the real pattern). Over 2,000 simulated runs each, all four
+presets are flagged and labelled correctly 100% of the time. Focused starts
+at 15 failed attempts: below ~13 failures on a real-looking account it
+overlaps a mistyping user by design (typing a few wrong passwords by hand
+shows that: the label is "ผู้ใช้พิมพ์รหัสผิด"). The console simulates one
+IP in one session, so Persistent multi-day and Botnet can only be shown with
+test logs 09/10 or the generator.
 
-## Attack type (stage 2)
+## Files
 
-Sessions flagged as Attack also get **which kind of brute force** it looks
-like, mapped to MITRE ATT&CK Brute Force (T1110):
+- `index.html`, `style.css` — the page
+- `js/features.js` — CSV parsing (strict ISO timestamps, trimmed fields),
+  session segmentation, the 16 features. Mirrors `../backend/pipeline.py`.
+- `js/model.js` — `SSHModel` (multiclass forest walker, float32 split
+  comparison like sklearn) + `decideClass` (the decision rule)
+- `js/class-info.js` — names, Thai descriptions, MITRE IDs, "signal" text
+- `js/app.js` — upload → pipeline → table / summary / answer check
+- `js/auth-log.js` — raw sshd log → CSV (syslog and ISO timestamps,
+  `message repeated N times`, invalid-user probe de-duplication,
+  keyboard-interactive/pam, IPv6, BOM/CRLF)
+- `js/log-generator.js`, `js/generator-ui.js` — the generator panel
+- `js/live-console.js` — the simulated terminal
+- `model/forest.json` — exported model (written by
+  `../v3/train_multiclass_model.py`, max difference vs sklearn ~2e-8)
 
-| Type | MITRE |
-|---|---|
-| Burst brute force, Focused brute force, Dictionary scanner, Low-and-slow, Persistent multi-day | T1110.001 Password Guessing |
-| Botnet spike (many IPs, same target, same 15 min) | T1110 |
-| Password spraying | T1110.003 |
-| Credential stuffing | T1110.004 |
+## Known limitations
 
-- **Two-stage design:** stage 1 (`model/forest.json`) is unchanged and still
-  decides Attack/Legit. Stage 2 (`model/forest_type.json`, 400 trees, depth 8,
-  same 16 features) only labels sessions stage 1 flags at the current
-  threshold. A type model has no "legit" answer, so it is never shown for
-  legit sessions.
-- `ambiguous_attack` is not a type (it is a legit-looking case stage 1 can't
-  flag), so it was excluded from stage-2 training.
-- Top-class probability below 0.6 is shown as **"ไม่แน่ใจ" (closest: …)**
-  instead of forcing a label.
-- Trained/evaluated by `../v3/train_type_model.py` (also notebook section 10):
-  test 100%, OOD 99.8% accuracy, shuffled-label sanity check collapses to
-  macro F1 0.04. These numbers mostly show the synthetic types are separable
-  by construction, not that real attackers sort into these 8 boxes this
-  neatly. Not validated on real traffic.
-- The Live Console simulates one IP in one session, so it can only show
-  session-level types. Persistent multi-day and Botnet need the history in
-  test logs `09` and `10`.
-
-## What's in here
-
-- `index.html` / `style.css` — the page
-- `js/features.js` — CSV parsing, session segmentation (time-gap per
-  Source_IP), and the full v3 feature set (session + IP-level +
-  time-window). Mirrors `../backend/pipeline.py` exactly — keep both in
-  sync if either changes.
-- `js/attack-types.js` — display names, MITRE IDs and one-line "signal"
-  text for each stage-2 attack type
-- `model/forest_type.json` — exported stage-2 attack-type model (exported and
-  verified against sklearn by `../v3/train_type_model.py`, max diff ~5e-9)
-- `js/model.js` — pure-JS traversal of the trained Random Forests: `SSHModel`
-  (stage 1, binary) and `SSHTypeModel` (stage 2, multiclass). Generic over
-  whatever `feature_columns` each JSON says. Verified against the real
-  sklearn models (floating-point rounding only).
-- `js/app.js` — wires upload → pipeline → results table (incl. the
-  "ประเภทการโจมตี" column and the types-found summary)
-- `model/forest.json` — the exported v3 model (400 trees, depth 8, ~960 KB)
-- `sample-log.csv` — a small demo log covering a few patterns
-- `test_logs/` — 10 self-contained demo logs for the test-suite panel (see
-  their in-page descriptions); `01`–`04` are safe/hard-negative, `05`–`10`
-  are attacks, with `08`–`10` specifically showcasing v3's new feature
-  families (credential stuffing needs the new event vocabulary; persistent
-  multi-day needs IP-level aggregation; botnet spike needs the time-window
-  feature) — each verified against the model before publishing (see
-  `verify_demo_logs.py` in the `v3/` working folder).
-- `export_model_v3.py` — the export script (Python, sklearn) that produced
-  `model/forest.json` from `ssh_bruteforce_model_v3.joblib`
-
-## Using the page
-
-1. Load a log CSV (must have `Timestamp, Event, Username, Source_IP,
-   Source_Port` columns — `Log_ID`/`Password` are ignored if present,
-   `Password` is never used as a feature) or click "ใช้ไฟล์ตัวอย่าง" for the
-   bundled sample, or load one of the 10 test-suite cards.
-2. Adjust **session gap threshold** (minutes) if needed.
-3. Adjust the **decision threshold** slider to see the precision/recall
-   trade-off live.
-4. Click a row to expand the raw log lines behind that session's score.
-
-## Known limitations (carried over from the model itself)
-
-- Trained entirely on synthetic data — see `../v3/ssh_bruteforce_pipeline_v3_executed.ipynb`
-  for the full evidence trail (feature verification, permutation
-  importance, group ablation, OOD generalization check). Not validated
-  against real attack traffic.
-- `ambiguous_attack`-style cases (deliberately built to look statistically
-  identical to a legit typo-prone user) are effectively undetectable from
-  log-derived features alone — this is a property of the feature space,
-  not a bug, and is documented in the notebook. None of the 10 demo files
-  use this pattern (it would not "show off" detection, since it's a known,
-  by-design blind spot) — ask if you'd like an 11th file added specifically
-  to demonstrate it.
-- IP-level and time-window features only see what's in the uploaded file;
-  a real deployment scoring a live rolling window of traffic needs a
-  persistent store keyed by Source_IP/username, not just this page.
+- Trained on synthetic data; not validated on real attack traffic.
+- Blind spots: an attack shaped exactly like a mistyping user
+  (`ambiguous_attack`, 0% in v3 as well), focused brute force with few
+  attempts against a real-looking account, and attacks with perfectly
+  regular timing.
+- IP-level and time-window features only see what is in the uploaded file;
+  short files carry less history. A production system would need a
+  persistent store keyed by IP/username.
+- Roaming users (one user, several IPs) are labelled "Login ปกติ" — a
+  user-level feature would be needed to name them separately.

@@ -1,6 +1,6 @@
 // live-console.js -- "Live Attack Console": a fake SSH terminal the user
 // (or a canned preset) types password guesses into, so they can watch the
-// v3 model's risk score move in real time. Entirely client-side, entirely
+// model's risk score and behaviour label move in real time. Entirely client-side, entirely
 // simulated -- there is no real server, no real authentication, nothing is
 // sent anywhere. Every attempt just appends a row to an in-memory log in
 // the exact schema the model expects, then re-scores it through the SAME
@@ -121,22 +121,22 @@
       els.gaugeValue.textContent = "0%";
       els.gaugeVerdict.textContent = "รอข้อมูล...";
       els.gaugeVerdict.className = "gauge-verdict";
-      updateTypeLine(null, false);
+      els.typeLine.hidden = true;
       return;
     }
     try {
-      await ensureModelLoadedLocal();
+      await SSHModel.load();
       const feats = computeFeatures(rows);
-      const x = SSHModel.featureVector(feats);
-      const proba = SSHModel.predictProba(x);
-      const pct = Math.round(proba * 100);
+      // same model + decision rule as the results table, at the model's own
+      // threshold (chosen by cross-validation on the training set)
+      const d = SSHModel.classify(feats);
+      const pct = Math.round(d.risk * 100);
       els.gaugeFill.style.width = pct + "%";
-      const isAttack = proba >= 0.55;
-      els.gaugeFill.style.background = isAttack ? "var(--danger)" : "var(--safe)";
+      els.gaugeFill.style.background = d.isAttack ? "var(--danger)" : "var(--safe)";
       els.gaugeValue.textContent = pct + "%";
-      els.gaugeVerdict.textContent = isAttack ? "🚨 ตรวจพบว่าเป็น Attack" : "ปกติ (ยังไม่ถึงเกณฑ์)";
-      els.gaugeVerdict.className = "gauge-verdict " + (isAttack ? "verdict-attack" : "verdict-safe");
-      updateTypeLine(feats, isAttack);
+      els.gaugeVerdict.textContent = d.isAttack ? "🚨 ตรวจพบว่าเป็น Attack" : "ปกติ (ยังไม่ถึงเกณฑ์)";
+      els.gaugeVerdict.className = "gauge-verdict " + (d.isAttack ? "verdict-attack" : "verdict-safe");
+      updateTypeLine(d);
       updateFeatureChips(feats);
     } catch (err) {
       els.gaugeVerdict.textContent = "โหลดโมเดลไม่สำเร็จ: " + err.message;
@@ -144,23 +144,20 @@
     }
   }
 
-  // Stage 2: what kind of attack this looks like -- only once stage 1 flags it.
-  // Note: the console simulates ONE IP in ONE session, so the IP-history and
-  // cross-IP types (persistent multi-day, botnet) cannot appear here; those
-  // are shown by test logs 09 and 10.
-  function updateTypeLine(feats, isAttack) {
-    if (!feats || !isAttack || !SSHTypeModel.featureColumns) {
-      els.typeLine.hidden = true;
-      return;
-    }
-    const t = SSHTypeModel.predictType(feats);
-    const info = describeAttackType(t.type);
-    const pct = Math.round(t.confidence * 100);
-    els.typeLine.innerHTML = t.lowConfidence
-      ? `<span class="type-label">ประเภท:</span> <span class="type-badge type-low">ไม่แน่ใจ</span>
+  // Which behaviour this looks like (attack type or legit behaviour).
+  // The console simulates ONE IP in ONE session, so classes that need IP
+  // history or other IPs (persistent multi-day, botnet) cannot appear here;
+  // test logs 09 and 10 and the log generator show those.
+  function updateTypeLine(d) {
+    const info = describeClass(d.label);
+    const pct = Math.round(d.confidence * 100);
+    const kind = d.isAttack ? "type-attack" : "type-legit";
+    const tail = d.isAttack ? `${info.th} · ${info.mitre} · ${pct}%` : `${info.th} · ${pct}%`;
+    els.typeLine.innerHTML = d.lowConfidence
+      ? `<span class="type-label">ลักษณะ:</span> <span class="type-badge type-low">ไม่แน่ใจ</span>
          <span class="type-sub">ใกล้เคียง ${info.name} (${pct}%)</span>`
-      : `<span class="type-label">ประเภท:</span> <span class="type-badge">${info.name}</span>
-         <span class="type-sub">${info.th} · ${info.mitre} · ${pct}%</span>
+      : `<span class="type-label">ลักษณะ:</span> <span class="type-badge ${kind}">${info.name}</span>
+         <span class="type-sub">${tail}</span>
          <span class="type-signal">${info.signal}</span>`;
     els.typeLine.hidden = false;
   }
@@ -177,13 +174,6 @@
     els.featuresBox.innerHTML = rows.map(([k, v]) =>
       `<div class="feat-chip"><span class="feat-k">${k}</span><span class="feat-v">${v}</span></div>`
     ).join("");
-  }
-
-  async function ensureModelLoadedLocal() {
-    await SSHModel.load("model/forest.json");
-    // stage 2 is optional -- the gauge still works if it fails to load
-    try { await SSHTypeModel.load("model/forest_type.json"); }
-    catch (err) { console.warn("attack-type model not loaded:", err); }
   }
 
   // ------------------------------------------------------------- manual input --

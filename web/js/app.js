@@ -1,94 +1,54 @@
-// app.js -- wires file upload -> session segmentation -> feature extraction
-// -> model inference (stage 1: Attack/Legit, stage 2: attack type) -> table.
+// app.js -- wires a log file (CSV or raw sshd auth.log) -> session
+// segmentation -> feature extraction -> ONE multiclass model (risk score +
+// which behaviour) -> results table.
 // Runs entirely in the browser when config.js leaves API_BASE_URL empty;
 // otherwise the CSV is sent to the FastAPI backend, which runs the same
-// two models and returns the same fields.
+// model and returns the same fields (raw auth.log is always converted to
+// CSV in the browser first).
 
 (() => {
-  const fileInput = document.getElementById("file-input");
-  const fileDrop = document.getElementById("file-drop");
-  const fileDropLabel = document.getElementById("file-drop-label");
-  const loadSampleBtn = document.getElementById("load-sample-btn");
-  const gapInput = document.getElementById("gap-input");
-  const thresholdInput = document.getElementById("threshold-input");
-  const thresholdValue = document.getElementById("threshold-value");
-  const statusLine = document.getElementById("status-line");
-  const statusSpinner = document.getElementById("status-spinner");
-  const statusText = document.getElementById("status-text");
-  const summaryPanel = document.getElementById("summary-panel");
-  const resultsPanel = document.getElementById("results-panel");
-  const resultsTbody = document.getElementById("results-tbody");
-  const attackOnlyToggle = document.getElementById("attack-only-toggle");
-  const statSessions = document.getElementById("stat-sessions");
-  const statAttack = document.getElementById("stat-attack");
-  const statLegit = document.getElementById("stat-legit");
-  const statIps = document.getElementById("stat-ips");
-  const typeBreakdown = document.getElementById("type-breakdown");
+  const $ = (id) => document.getElementById(id);
+  const fileInput = $("file-input");
+  const fileDrop = $("file-drop");
+  const fileDropLabel = $("file-drop-label");
+  const loadSampleBtn = $("load-sample-btn");
+  const gapInput = $("gap-input");
+  const thresholdInput = $("threshold-input");
+  const thresholdValue = $("threshold-value");
+  const statusLine = $("status-line");
+  const statusSpinner = $("status-spinner");
+  const statusText = $("status-text");
+  const summaryPanel = $("summary-panel");
+  const resultsPanel = $("results-panel");
+  const resultsTbody = $("results-tbody");
+  const attackOnlyToggle = $("attack-only-toggle");
+  const statSessions = $("stat-sessions");
+  const statAttack = $("stat-attack");
+  const statLegit = $("stat-legit");
+  const statIps = $("stat-ips");
+  const typeBreakdown = $("type-breakdown");
+  const checkPanel = $("check-panel");
 
-  let currentResults = [];       // [{session, features, proba, attackType}]
-  let lastRawText = null;        // raw CSV text of the last loaded file
-  let lastLabel = null;          // display name of the last loaded file
+  let currentResults = [];   // [{session, features, classProba, risk}]
+  let currentMeta = null;    // {attackClasses, legitClasses, lowConfidence, threshold}
+  let currentTruth = null;   // Map rowKey -> true class (only for generated logs)
+  let lastRawText = null;
+  let lastLabel = null;
+  let lastTruth = null;
+  let thresholdTouched = false;
+  let runSeq = 0;            // newest analysis wins; older in-flight results are dropped
   let sortState = { key: "risk", dir: -1 };
 
+  // ------------------------------------------------------------ helpers --
   function setStatus(msg, isError = false) {
     statusText.textContent = msg;
     statusLine.classList.toggle("error", isError);
   }
+  function setLoading(isLoading) { statusSpinner.classList.toggle("hidden", !isLoading); }
 
-  function setLoading(isLoading) {
-    statusSpinner.classList.toggle("hidden", !isLoading);
-  }
-
-  function revealResults() {
-    summaryPanel.classList.remove("hidden");
-    resultsPanel.classList.remove("hidden");
-    [summaryPanel, resultsPanel].forEach(panel => {
-      panel.classList.remove("reveal");
-      // eslint-disable-next-line no-unused-expressions -- restart the CSS animation
-      void panel.offsetWidth;
-      panel.classList.add("reveal");
-    });
-    requestAnimationFrame(() => {
-      summaryPanel.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-  }
-
-  async function ensureModelLoaded() {
-    if (!SSHModel.featureColumns) {
-      setStatus("กำลังโหลดโมเดล...");
-      await SSHModel.load("model/forest.json");
-    }
-    // stage 2 is optional: if it fails to load, the page still scores Attack/Legit
-    if (!SSHTypeModel.featureColumns) {
-      try { await SSHTypeModel.load("model/forest_type.json"); }
-      catch (err) { console.warn("attack-type model not loaded:", err); }
-    }
-  }
-
-  // Stage-2 result for one session -> table cell. Only shown for sessions that
-  // stage 1 flags at the CURRENT threshold (type is meaningless for legit ones).
-  function typeCellHtml(attackType, isAttack) {
-    if (!isAttack) return `<span class="type-none">—</span>`;
-    if (!attackType) return `<span class="type-none">ไม่มีข้อมูลประเภท</span>`;
-    const info = describeAttackType(attackType.type);
-    const pct = Math.round(attackType.confidence * 100);
-    if (attackType.lowConfidence) {
-      return `<span class="type-badge type-low" title="${info.signal}">ไม่แน่ใจ</span>
-        <span class="type-sub">ใกล้เคียง: ${info.name} (${pct}%)</span>`;
-    }
-    return `<span class="type-badge" title="${info.signal}">${info.name}</span>
-      <span class="type-sub">${info.th} · ${info.mitre} · ${pct}%</span>`;
-  }
-
-  function typeOf(attackType) {
-    if (!attackType) return null;
-    return attackType.lowConfidence ? "uncertain" : attackType.type;
-  }
-
-  // CSV values (usernames, IPs, events...) come from an uploaded file and
-  // must never be inserted as HTML.
+  // Values from an uploaded file must never be inserted as HTML.
   function esc(v) {
-    return String(v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    return String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
 
   function formatDuration(seconds) {
@@ -98,9 +58,26 @@
     return (seconds / 86400).toFixed(1) + "d";
   }
 
+  // Timestamps without a zone are read as the viewer's local time, so they
+  // are shown back in local time too (not UTC).
   function formatTime(ms) {
     const d = new Date(ms);
-    return d.toISOString().replace("T", " ").slice(0, 19);
+    const p = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  }
+
+  // key that identifies one log line in both pipeline modes (generator answer key)
+  function rowKey(ip, port, ms) { return `${ip}|${String(port).trim()}|${ms}`; }
+
+  function revealResults() {
+    summaryPanel.classList.remove("hidden");
+    resultsPanel.classList.remove("hidden");
+    [summaryPanel, resultsPanel].forEach(panel => {
+      panel.classList.remove("reveal");
+      void panel.offsetWidth; // restart the CSS animation
+      panel.classList.add("reveal");
+    });
+    requestAnimationFrame(() => summaryPanel.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
 
   function buildEvidence(session, features) {
@@ -118,84 +95,95 @@
     return bits.join(" · ");
   }
 
+  function classCellHtml(d) {
+    const info = describeClass(d.label);
+    const pct = Math.round(d.confidence * 100);
+    const kind = d.isAttack ? "type-attack" : "type-legit";
+    if (d.lowConfidence) {
+      return `<span class="type-badge type-low" title="${esc(info.signal)}">ไม่แน่ใจ</span>
+        <span class="type-sub">ใกล้เคียง: ${esc(info.name)} (${pct}%)</span>`;
+    }
+    const tail = d.isAttack ? `${esc(info.th)} · ${esc(info.mitre)} · ${pct}%` : `${esc(info.th)} · ${pct}%`;
+    return `<span class="type-badge ${kind}" title="${esc(info.signal)}">${esc(info.name)}</span>
+      <span class="type-sub">${tail}</span>`;
+  }
+
   function apiBaseUrl() {
     return (window.SSHML_CONFIG && window.SSHML_CONFIG.API_BASE_URL) || "";
   }
 
+  // ----------------------------------------------------------- pipeline --
   async function runPipelineViaBackend(csvText, gapMinutes) {
     const formData = new FormData();
     formData.append("file", new Blob([csvText], { type: "text/csv" }), "log.csv");
     const res = await fetch(`${apiBaseUrl()}/predict?gap_minutes=${gapMinutes}`, { method: "POST", body: formData });
     if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(`Backend ตอบผิดพลาด (${res.status}): ${text.slice(0, 200)}`);
+      let detail = await res.text().catch(() => "");
+      try { detail = JSON.parse(detail).detail || detail; } catch (_) { /* not JSON */ }
+      throw new Error(`Backend ตอบผิดพลาด (${res.status}): ${String(detail).slice(0, 200)}`);
     }
     const data = await res.json();
+    if (!data.classes) throw new Error("Backend ยังเป็นเวอร์ชันเก่า (ไม่มีข้อมูลคลาส) — รอ deploy ใหม่");
+    const meta = {
+      attackClasses: data.attack_classes, legitClasses: data.legit_classes,
+      lowConfidence: 0.6, threshold: data.threshold,
+    };
     const results = data.sessions.map(s => ({
       session: {
         ip: s.ip,
         rows: s.rows.map(r => ({
-          ts: Date.parse(r.ts), tsRaw: r.ts,
-          Event: r.event, Username: r.username, Source_Port: r.port,
+          ts: SSHFeatures.parseTimestamp(r.ts), tsRaw: r.ts,
+          Event: r.event, Username: r.username, Source_Port: r.port, Source_IP: s.ip,
         })),
       },
       features: s.features,
-      proba: s.proba,
-      attackType: s.attack_type ? {
-        type: s.attack_type.type,
-        confidence: s.attack_type.confidence,
-        lowConfidence: s.attack_type.low_confidence,
-        ranked: s.attack_type.ranked,
-      } : null,
+      classProba: s.class_proba,
+      risk: s.proba,
     }));
-    return { nRows: data.n_rows, results };
+    return { nRows: data.n_rows, results, meta };
   }
 
-  function runPipelineLocally(csvText, gapMinutes) {
+  async function runPipelineLocally(csvText, gapMinutes) {
+    if (!SSHModel.featureColumns) {
+      setStatus("กำลังโหลดโมเดล...");
+      await SSHModel.load();
+    }
     const rows = SSHFeatures.loadLogRows(csvText);
     if (rows.length === 0) throw new Error("ไม่พบแถวข้อมูลที่อ่านได้ในไฟล์นี้");
     const sessions = SSHFeatures.segmentSessions(rows, gapMinutes);
     // IP-level and time-window features need the WHOLE file's sessions at
-    // once (not just one session in isolation), so features are computed
-    // for all sessions together, then scored one at a time.
+    // once, so features are computed for all sessions together.
     const allFeatures = SSHFeatures.extractAllFeatures(rows, sessions);
     const results = sessions.map((session, i) => {
       const features = allFeatures[i];
-      const x = SSHModel.featureVector(features);
-      const proba = SSHModel.predictProba(x);
-      const attackType = SSHTypeModel.featureColumns ? SSHTypeModel.predictType(features) : null;
-      return { session, features, proba, attackType };
+      const classProba = SSHModel.predictClassProba(SSHModel.featureVector(features));
+      const risk = Math.round(SSHModel.meta().attackClasses.reduce((s, c) => s + classProba[c], 0) * 1e9) / 1e9;
+      return { session, features, classProba, risk };
     });
-    return { nRows: rows.length, results };
+    return { nRows: rows.length, results, meta: SSHModel.meta() };
   }
 
-  async function runPipeline(csvText, gapMinutes) {
-    return apiBaseUrl()
-      ? runPipelineViaBackend(csvText, gapMinutes)
-      : runPipelineLocally(csvText, gapMinutes);
-  }
-
+  // ------------------------------------------------------------- render --
   function render() {
     const threshold = parseFloat(thresholdInput.value);
     thresholdValue.textContent = threshold.toFixed(2);
+    if (!currentMeta) return;
+
+    for (const r of currentResults) r.d = decideClass(r.classProba, threshold, currentMeta);
 
     let rowsToShow = currentResults;
-    if (attackOnlyToggle.checked) {
-      rowsToShow = rowsToShow.filter(r => r.proba >= threshold);
-    }
+    if (attackOnlyToggle.checked) rowsToShow = rowsToShow.filter(r => r.d.isAttack);
 
     const sorted = [...rowsToShow].sort((a, b) => {
       const key = sortState.key;
       if (key === "type") {
-        // flagged rows sorted by type name; unflagged ("—") always last
-        const fa = a.proba >= threshold, fb = b.proba >= threshold;
-        if (fa !== fb) return fa ? -1 : 1;
-        if (!fa) return b.proba - a.proba;
-        const ta = typeOf(a.attackType) || "", tb = typeOf(b.attackType) || "";
-        return ta === tb ? b.proba - a.proba : (ta < tb ? -1 : 1) * -sortState.dir;
+        // attacks first, then legit; within a group by class name
+        if (a.d.isAttack !== b.d.isAttack) return a.d.isAttack ? -1 : 1;
+        const ta = describeClass(a.d.label).name, tb = describeClass(b.d.label).name;
+        return ta === tb ? b.risk - a.risk : (ta < tb ? -1 : 1) * -sortState.dir;
       }
       let av, bv;
-      if (key === "risk") { av = a.proba; bv = b.proba; }
+      if (key === "risk") { av = a.risk; bv = b.risk; }
       else if (key === "ip") { av = a.session.ip; bv = b.session.ip; }
       else if (key === "start") { av = a.session.rows[0].ts; bv = b.session.rows[0].ts; }
       else if (key === "duration") { av = a.features.duration_seconds; bv = b.features.duration_seconds; }
@@ -205,85 +193,145 @@
       return 0;
     });
 
-    resultsTbody.innerHTML = "";
+    const frag = document.createDocumentFragment();
     for (const r of sorted) {
-      const isAttack = r.proba >= threshold;
+      const isAttack = r.d.isAttack;
       const tr = document.createElement("tr");
       tr.className = "session-row";
       tr.innerHTML = `
-        <td><span class="risk-badge ${isAttack ? "attack" : "legit"}">${isAttack ? "ATTACK" : "legit"} ${(r.proba * 100).toFixed(0)}%</span></td>
+        <td><span class="risk-badge ${isAttack ? "attack" : "legit"}">${isAttack ? "ATTACK" : "legit"} ${(r.risk * 100).toFixed(0)}%</span></td>
         <td class="mono">${esc(r.session.ip)}</td>
         <td class="mono">${formatTime(r.session.rows[0].ts)}</td>
         <td>${formatDuration(r.features.duration_seconds)}</td>
         <td>${r.features.n_events}</td>
         <td>${r.features.n_failed}</td>
         <td>${r.features.n_unique_usernames}</td>
-        <td class="type-cell">${typeCellHtml(r.attackType, isAttack)}</td>
+        <td class="type-cell">${classCellHtml(r.d)}</td>
         <td class="evidence">${buildEvidence(r.session, r.features)}</td>
       `;
       const detailTr = document.createElement("tr");
       detailTr.className = "detail-row";
       detailTr.style.display = "none";
       const logLines = r.session.rows.map(row => {
-        const cls = row.Event === "Failed password" ? "fail" : "success";
-        return `<div class="${cls}">${esc(row.tsRaw)}  ${esc(String(row.Event).padEnd(18))}  user=${esc(row.Username)}  port=${esc(row.Source_Port)}</div>`;
+        const ev = String(row.Event);
+        const cls = ev.startsWith("Accepted") ? "success" : "fail";
+        return `<div class="${cls}">${esc(row.tsRaw)}  ${esc(ev.padEnd(18))}  user=${esc(row.Username)}  port=${esc(row.Source_Port)}</div>`;
       }).join("");
       detailTr.innerHTML = `<td colspan="9"><div class="log-lines">${logLines}</div></td>`;
-
       tr.addEventListener("click", () => {
         detailTr.style.display = detailTr.style.display === "none" ? "table-row" : "none";
       });
-
-      resultsTbody.appendChild(tr);
-      resultsTbody.appendChild(detailTr);
+      frag.appendChild(tr);
+      frag.appendChild(detailTr);
     }
+    resultsTbody.innerHTML = "";
+    resultsTbody.appendChild(frag);
 
-    const attackCount = currentResults.filter(r => r.proba >= threshold).length;
+    const attackCount = currentResults.filter(r => r.d.isAttack).length;
     statSessions.textContent = currentResults.length;
     statAttack.textContent = attackCount;
     statLegit.textContent = currentResults.length - attackCount;
     statIps.textContent = new Set(currentResults.map(r => r.session.ip)).size;
 
-    // which attack types were found among flagged sessions
-    const counts = new Map();
-    for (const r of currentResults) {
-      if (r.proba < threshold) continue;
-      const key = typeOf(r.attackType);
-      if (key) counts.set(key, (counts.get(key) || 0) + 1);
-    }
-    if (counts.size === 0) {
-      typeBreakdown.hidden = true;
-      typeBreakdown.innerHTML = "";
-    } else {
-      const chips = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([key, n]) => {
-        const label = key === "uncertain" ? "ไม่แน่ใจประเภท" : `${describeAttackType(key).name} (${describeAttackType(key).mitre})`;
-        return `<span class="type-chip">${label} <b>×${n}</b></span>`;
-      }).join("");
-      typeBreakdown.innerHTML = `<span class="type-breakdown-label">ประเภทที่พบ:</span>${chips}`;
-      typeBreakdown.hidden = false;
-    }
+    renderBreakdown();
+    renderCheck();
   }
 
-  async function handleFile(text, label) {
+  function renderBreakdown() {
+    const counts = { attack: new Map(), legit: new Map() };
+    for (const r of currentResults) {
+      const key = r.d.lowConfidence ? "uncertain" : r.d.label;
+      const g = r.d.isAttack ? counts.attack : counts.legit;
+      g.set(key, (g.get(key) || 0) + 1);
+    }
+    const chips = (map, kind) => [...map.entries()].sort((a, b) => b[1] - a[1]).map(([key, n]) => {
+      const info = describeClass(key);
+      const label = key === "uncertain" ? "ไม่แน่ใจประเภท" : (info.mitre ? `${info.name} (${info.mitre})` : info.name);
+      return `<span class="type-chip ${kind}">${esc(label)} <b>×${n}</b></span>`;
+    }).join("");
+    let html = "";
+    if (counts.attack.size) html += `<div class="type-breakdown-row"><span class="type-breakdown-label">การโจมตีที่พบ:</span>${chips(counts.attack, "chip-attack")}</div>`;
+    if (counts.legit.size) html += `<div class="type-breakdown-row"><span class="type-breakdown-label">พฤติกรรมปกติ:</span>${chips(counts.legit, "chip-legit")}</div>`;
+    typeBreakdown.innerHTML = html;
+    typeBreakdown.hidden = !html;
+  }
+
+  // Compare against the answer key of a generated log (if any).
+  function renderCheck() {
+    if (!currentTruth) { checkPanel.hidden = true; checkPanel.innerHTML = ""; return; }
+    const byClass = new Map();
+    let n = 0, groupOk = 0, classOk = 0;
+    for (const r of currentResults) {
+      const votes = new Map();
+      for (const row of r.session.rows) {
+        const t = currentTruth.get(rowKey(row.Source_IP ?? r.session.ip, row.Source_Port, row.ts));
+        if (t) votes.set(t, (votes.get(t) || 0) + 1);
+      }
+      if (!votes.size) continue;
+      const truth = [...votes.entries()].sort((a, b) => b[1] - a[1])[0][0];
+      const truthAttack = describeClass(truth).group === "attack";
+      const g = r.d.isAttack === truthAttack;
+      const c = g && r.d.label === truth;
+      const s = byClass.get(truth) || { n: 0, g: 0, c: 0 };
+      s.n++; s.g += g; s.c += c; byClass.set(truth, s);
+      n++; groupOk += g; classOk += c;
+    }
+    if (!n) { checkPanel.hidden = true; return; }
+    const pct = (a, b) => `${(100 * a / b).toFixed(1)}%`;
+    const order = Object.keys(CLASS_INFO);
+    const rows = [...byClass.entries()].sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0])).map(([cls, s]) => {
+      const info = describeClass(cls);
+      return `<tr><td><span class="type-badge ${info.group === "attack" ? "type-attack" : "type-legit"}">${esc(info.name)}</span></td>
+        <td>${info.group === "attack" ? "โจมตี" : "ปกติ"}</td><td>${s.n}</td>
+        <td class="${s.g === s.n ? "ok" : "warn"}">${s.g}/${s.n} (${pct(s.g, s.n)})</td>
+        <td class="${s.c === s.n ? "ok" : "warn"}">${s.c}/${s.n} (${pct(s.c, s.n)})</td></tr>`;
+    }).join("");
+    checkPanel.innerHTML = `
+      <h2>ตรวจคำตอบเทียบเฉลยของ log ที่สร้าง</h2>
+      <p class="check-total">ทั้งหมด ${n} session · แยกโจมตี/ปกติถูก <b>${pct(groupOk, n)}</b> · ระบุประเภทถูก <b>${pct(classOk, n)}</b>
+        <span class="hint">(ที่ threshold ${parseFloat(thresholdInput.value).toFixed(2)})</span></p>
+      <div class="table-scroll"><table class="check-table">
+        <thead><tr><th>ประเภทจริง</th><th>กลุ่ม</th><th>Sessions</th><th>แยกโจมตี/ปกติถูก</th><th>ระบุประเภทถูก</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>
+      <p class="hint">เฉลยไม่ได้อยู่ในไฟล์ CSV ที่ส่งให้โมเดล — เว็บเก็บไว้แยกแล้วนำมาเทียบหลังวิเคราะห์เสร็จ</p>`;
+    checkPanel.hidden = false;
+  }
+
+  // --------------------------------------------------------------- load --
+  async function handleFile(text, label, truth = null) {
+    const myRun = ++runSeq;
     setLoading(true);
     try {
+      let csvText = text;
+      let convertNote = "";
+      if (window.AuthLog && AuthLog.looksLikeAuthLog(text)) {
+        const conv = AuthLog.toCsv(text);
+        if (conv.rows === 0) throw new Error("ไฟล์นี้ดูเหมือน auth.log แต่ไม่พบบรรทัด sshd ที่รองรับ (ดูรูปแบบในกล่อง \"รูปแบบไฟล์ที่รองรับ\")");
+        csvText = conv.csv;
+        convertNote = ` · แปลงจาก auth.log: ใช้ ${conv.rows} เหตุการณ์ (ข้าม ${conv.ignoredLines} บรรทัดที่ไม่เกี่ยวกับการ login)`;
+      }
       const usingBackend = !!apiBaseUrl();
-      if (!usingBackend) await ensureModelLoaded();
       setStatus(`กำลังประมวลผล ${label}${usingBackend ? " ผ่าน backend..." : " ในเบราว์เซอร์..."}`);
-      lastRawText = text;
-      lastLabel = label;
-      const gapMinutes = parseFloat(gapInput.value) || 30;
-      const { nRows, results } = await runPipeline(text, gapMinutes);
+      lastRawText = text; lastLabel = label; lastTruth = truth;
+      const gapMinutes = parseFloat(gapInput.value) || 10;
+      const { nRows, results, meta } = usingBackend
+        ? await runPipelineViaBackend(csvText, gapMinutes)
+        : await runPipelineLocally(csvText, gapMinutes);
+      if (myRun !== runSeq) return;  // a newer file/generation was started meanwhile
       currentResults = results;
+      currentMeta = meta;
+      currentTruth = truth;
+      if (!thresholdTouched && meta.threshold != null) thresholdInput.value = meta.threshold;
       const modeNote = usingBackend ? "ประมวลผลบน backend" : "ประมวลผลในเบราว์เซอร์ทั้งหมด";
-      setStatus(`อ่านได้ ${nRows} แถว log แบ่งได้ ${results.length} session (จาก ${label}, gap threshold ${gapMinutes} นาที) — ${modeNote}`);
+      setStatus(`อ่านได้ ${nRows} แถว log แบ่งได้ ${results.length} session (จาก ${label}, session gap ${gapMinutes} นาที) — ${modeNote}${convertNote}`);
       render();
       revealResults();
     } catch (err) {
+      if (myRun !== runSeq) return;
       setStatus("เกิดข้อผิดพลาด: " + err.message, true);
       console.error(err);
     } finally {
-      setLoading(false);
+      if (myRun === runSeq) setLoading(false);
     }
   }
 
@@ -291,29 +339,25 @@
     fileDropLabel.textContent = file.name;
     const reader = new FileReader();
     reader.onload = () => handleFile(reader.result, file.name);
+    reader.onerror = () => setStatus("อ่านไฟล์ไม่สำเร็จ", true);
     reader.readAsText(file);
   }
 
   fileInput.addEventListener("change", () => {
     const file = fileInput.files[0];
     if (file) readAndHandle(file);
+    fileInput.value = "";  // allow re-selecting the same file
   });
 
   ["dragover", "dragenter"].forEach(evt =>
-    fileDrop.addEventListener(evt, (e) => { e.preventDefault(); fileDrop.classList.add("drag-over"); })
-  );
+    fileDrop.addEventListener(evt, (e) => { e.preventDefault(); fileDrop.classList.add("drag-over"); }));
   ["dragleave", "drop"].forEach(evt =>
-    fileDrop.addEventListener(evt, (e) => { e.preventDefault(); fileDrop.classList.remove("drag-over"); })
-  );
+    fileDrop.addEventListener(evt, (e) => { e.preventDefault(); fileDrop.classList.remove("drag-over"); }));
   fileDrop.addEventListener("drop", (e) => {
     const file = e.dataTransfer.files[0];
     if (file) { readAndHandle(file); return; }
-    // not a real OS file drop -- check for an internal test-suite card drag
-    const url = e.dataTransfer.getData("text/plain");
-    if (url && url.startsWith("test_logs/")) {
-      const name = url.split("/").pop();
-      loadFromUrl(url, name);
-    }
+    const url = e.dataTransfer.getData("text/plain");  // internal test-card drag
+    if (url && url.startsWith("test_logs/")) loadFromUrl(url, url.split("/").pop());
   });
 
   async function loadFromUrl(url, name) {
@@ -321,18 +365,13 @@
     try {
       const res = await fetch(url);
       if (!res.ok) throw new Error(`โหลด ${name} ไม่สำเร็จ (${res.status})`);
-      const text = await res.text();
       fileDropLabel.textContent = name;
-      handleFile(text, name);
+      handleFile(await res.text(), name);
     } catch (err) {
       setStatus("เกิดข้อผิดพลาด: " + err.message, true);
     }
   }
 
-  // test-suite cards: click "load" button (auto-runs it through the model),
-  // click "download" (native <a download>, no JS needed), or drag the whole
-  // card onto the upload dropzone above (native HTML5 drag-and-drop -- see
-  // fileDrop "drop" handler, which reads the URL back out of dataTransfer).
   document.querySelectorAll(".btn-load").forEach(btn => {
     btn.addEventListener("click", () => loadFromUrl(btn.dataset.file, btn.dataset.name));
   });
@@ -344,29 +383,14 @@
     });
     card.addEventListener("dragend", () => card.classList.remove("dragging"));
   });
+  loadSampleBtn.addEventListener("click", () => loadFromUrl("sample-log.csv", "sample-log.csv"));
 
-  loadSampleBtn.addEventListener("click", async () => {
-    setStatus("กำลังโหลดไฟล์ตัวอย่าง...");
-    try {
-      const res = await fetch("sample-log.csv");
-      if (!res.ok) throw new Error("โหลด sample-log.csv ไม่สำเร็จ (" + res.status + ")");
-      const text = await res.text();
-      fileDropLabel.textContent = "sample-log.csv";
-      handleFile(text, "sample-log.csv");
-    } catch (err) {
-      setStatus("เกิดข้อผิดพลาด: " + err.message, true);
-    }
-  });
-
-  // Changing the gap threshold re-segments the LAST loaded file from scratch
-  // (session boundaries change, so features and predictions must be redone).
+  // Changing the gap re-segments the last file (features change).
   gapInput.addEventListener("change", () => {
-    if (lastRawText !== null) handleFile(lastRawText, lastLabel);
+    if (lastRawText !== null) handleFile(lastRawText, lastLabel, lastTruth);
   });
-
-  // Changing the decision threshold only re-labels already-computed
-  // probabilities -- no need to re-run the model.
-  thresholdInput.addEventListener("input", render);
+  // Changing the threshold only re-applies the decision rule.
+  thresholdInput.addEventListener("input", () => { thresholdTouched = true; render(); });
   attackOnlyToggle.addEventListener("change", render);
 
   document.querySelectorAll("#results-table thead th[data-sort]").forEach(th => {
@@ -377,4 +401,13 @@
       render();
     });
   });
+
+  // used by the log generator panel
+  window.SSHApp = {
+    analyze(text, label, truth) {
+      fileDropLabel.textContent = label;
+      return handleFile(text, label, truth);
+    },
+    rowKey,
+  };
 })();

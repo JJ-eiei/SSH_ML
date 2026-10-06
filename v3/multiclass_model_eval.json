@@ -1,0 +1,1061 @@
+{
+  "rf_params": {
+    "n_estimators": 400,
+    "max_depth": 8,
+    "max_features": 0.7,
+    "class_weight": null,
+    "random_state": 42
+  },
+  "class_map": {
+    "legit_success": "legit_login",
+    "legit_multi_ip_roaming": "legit_login",
+    "legit_typo": "legit_typo",
+    "ambiguous_legit": "legit_typo",
+    "shared_ip_legit": "shared_ip_legit",
+    "burst_bruteforce": "burst_bruteforce",
+    "focused_bruteforce": "focused_bruteforce",
+    "large_dictionary_scanner": "large_dictionary_scanner",
+    "low_and_slow": "low_and_slow",
+    "persistent_multiday_attacker": "persistent_multiday_attacker",
+    "coordinated_botnet_spike": "coordinated_botnet_spike",
+    "password_spray": "password_spray",
+    "credential_stuffing": "credential_stuffing"
+  },
+  "not_trained": [
+    "ambiguous_attack"
+  ],
+  "threshold_from_train_cv": 0.57,
+  "train_class_counts": {
+    "low_and_slow": 808,
+    "legit_login": 586,
+    "legit_typo": 412,
+    "burst_bruteforce": 330,
+    "persistent_multiday_attacker": 262,
+    "coordinated_botnet_spike": 216,
+    "password_spray": 82,
+    "shared_ip_legit": 80,
+    "focused_bruteforce": 52,
+    "credential_stuffing": 34,
+    "large_dictionary_scanner": 23
+  },
+  "train": {
+    "n_sessions": 2885,
+    "binary": {
+      "pr_auc": 0.9999871958154614,
+      "roc_auc": 0.9999784388273596,
+      "precision": 1.0,
+      "recall": 0.9961261759822911,
+      "f1": 0.9980593290823399,
+      "accuracy": 0.9975736568457539,
+      "confusion_tn_fp_fn_tp": [
+        1078,
+        0,
+        7,
+        1800
+      ]
+    },
+    "classes": {
+      "n_sessions": 2885,
+      "accuracy": 0.9975736568457539,
+      "macro_f1": 0.9926737695914071,
+      "per_class": {
+        "legit_login": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 586.0
+        },
+        "legit_typo": {
+          "precision": 0.9832935560859188,
+          "recall": 1.0,
+          "f1-score": 0.9915764139590855,
+          "support": 412.0
+        },
+        "shared_ip_legit": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 80.0
+        },
+        "burst_bruteforce": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 330.0
+        },
+        "focused_bruteforce": {
+          "precision": 1.0,
+          "recall": 0.8653846153846154,
+          "f1-score": 0.9278350515463918,
+          "support": 52.0
+        },
+        "large_dictionary_scanner": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 23.0
+        },
+        "low_and_slow": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 808.0
+        },
+        "persistent_multiday_attacker": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 262.0
+        },
+        "coordinated_botnet_spike": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 216.0
+        },
+        "password_spray": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 82.0
+        },
+        "credential_stuffing": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 34.0
+        },
+        "accuracy": 0.9975736568457539,
+        "macro avg": {
+          "precision": 0.9984812323714471,
+          "recall": 0.9877622377622377,
+          "f1-score": 0.9926737695914071,
+          "support": 2885.0
+        },
+        "weighted avg": {
+          "precision": 0.9976141924115766,
+          "recall": 0.9975736568457539,
+          "f1-score": 0.9974963276365878,
+          "support": 2885.0
+        }
+      },
+      "confusion_matrix": {
+        "labels": [
+          "legit_login",
+          "legit_typo",
+          "shared_ip_legit",
+          "burst_bruteforce",
+          "focused_bruteforce",
+          "large_dictionary_scanner",
+          "low_and_slow",
+          "persistent_multiday_attacker",
+          "coordinated_botnet_spike",
+          "password_spray",
+          "credential_stuffing"
+        ],
+        "matrix": [
+          [
+            586,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            412,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            80,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            330,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            7,
+            0,
+            0,
+            45,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            23,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            808,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            262,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            216,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            82,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            34
+          ]
+        ]
+      },
+      "low_confidence_fraction": 0.0
+    },
+    "by_original_pattern": {
+      "ambiguous_legit": {
+        "n": 52,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "burst_bruteforce": {
+        "n": 330,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "coordinated_botnet_spike": {
+        "n": 216,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "credential_stuffing": {
+        "n": 34,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "focused_bruteforce": {
+        "n": 52,
+        "group_correct": 0.8653846153846154,
+        "class_correct": 0.8653846153846154
+      },
+      "large_dictionary_scanner": {
+        "n": 23,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "legit_multi_ip_roaming": {
+        "n": 121,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "legit_success": {
+        "n": 465,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "legit_typo": {
+        "n": 360,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "low_and_slow": {
+        "n": 808,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "password_spray": {
+        "n": 82,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "persistent_multiday_attacker": {
+        "n": 262,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "shared_ip_legit": {
+        "n": 80,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      }
+    }
+  },
+  "test": {
+    "n_sessions": 979,
+    "binary": {
+      "pr_auc": 0.9956294123945875,
+      "roc_auc": 0.9932899443293979,
+      "precision": 1.0,
+      "recall": 0.9692556634304207,
+      "f1": 0.9843878389482333,
+      "accuracy": 0.9805924412665986,
+      "confusion_tn_fp_fn_tp": [
+        361,
+        0,
+        19,
+        599
+      ]
+    },
+    "classes": {
+      "n_sessions": 963,
+      "accuracy": 0.9968847352024922,
+      "macro_f1": 0.9907580200835333,
+      "per_class": {
+        "legit_login": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 196.0
+        },
+        "legit_typo": {
+          "precision": 0.9787234042553191,
+          "recall": 1.0,
+          "f1-score": 0.989247311827957,
+          "support": 138.0
+        },
+        "shared_ip_legit": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 27.0
+        },
+        "burst_bruteforce": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 110.0
+        },
+        "focused_bruteforce": {
+          "precision": 1.0,
+          "recall": 0.8333333333333334,
+          "f1-score": 0.9090909090909091,
+          "support": 18.0
+        },
+        "large_dictionary_scanner": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 7.0
+        },
+        "low_and_slow": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 270.0
+        },
+        "persistent_multiday_attacker": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 87.0
+        },
+        "coordinated_botnet_spike": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 72.0
+        },
+        "password_spray": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 27.0
+        },
+        "credential_stuffing": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 11.0
+        },
+        "accuracy": 0.9968847352024922,
+        "macro avg": {
+          "precision": 0.9980657640232109,
+          "recall": 0.9848484848484849,
+          "f1-score": 0.9907580200835333,
+          "support": 963.0
+        },
+        "weighted avg": {
+          "precision": 0.9969510174322264,
+          "recall": 0.9968847352024922,
+          "f1-score": 0.9967598809926214,
+          "support": 963.0
+        }
+      },
+      "confusion_matrix": {
+        "labels": [
+          "legit_login",
+          "legit_typo",
+          "shared_ip_legit",
+          "burst_bruteforce",
+          "focused_bruteforce",
+          "large_dictionary_scanner",
+          "low_and_slow",
+          "persistent_multiday_attacker",
+          "coordinated_botnet_spike",
+          "password_spray",
+          "credential_stuffing"
+        ],
+        "matrix": [
+          [
+            196,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            138,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            27,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            110,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            3,
+            0,
+            0,
+            15,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            7,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            270,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            87,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            72,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            27,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            11
+          ]
+        ]
+      },
+      "low_confidence_fraction": 0.0
+    },
+    "ambiguous_attack_not_trained": {
+      "n": 16,
+      "detected_as_attack": 0.0,
+      "labelled_as": {
+        "legit_typo": 16
+      }
+    },
+    "by_original_pattern": {
+      "ambiguous_attack": {
+        "n": 16,
+        "group_correct": 0.0,
+        "class_correct": null
+      },
+      "ambiguous_legit": {
+        "n": 18,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "burst_bruteforce": {
+        "n": 110,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "coordinated_botnet_spike": {
+        "n": 72,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "credential_stuffing": {
+        "n": 11,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "focused_bruteforce": {
+        "n": 18,
+        "group_correct": 0.8333333333333334,
+        "class_correct": 0.8333333333333334
+      },
+      "large_dictionary_scanner": {
+        "n": 7,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "legit_multi_ip_roaming": {
+        "n": 41,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "legit_success": {
+        "n": 155,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "legit_typo": {
+        "n": 120,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "low_and_slow": {
+        "n": 270,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "password_spray": {
+        "n": 27,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "persistent_multiday_attacker": {
+        "n": 87,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "shared_ip_legit": {
+        "n": 27,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      }
+    }
+  },
+  "ood": {
+    "n_sessions": 3316,
+    "binary": {
+      "pr_auc": 0.994926135347602,
+      "roc_auc": 0.9919024122807018,
+      "precision": 1.0,
+      "recall": 0.9695238095238096,
+      "f1": 0.9845261121856866,
+      "accuracy": 0.9806996381182147,
+      "confusion_tn_fp_fn_tp": [
+        1216,
+        0,
+        64,
+        2036
+      ]
+    },
+    "classes": {
+      "n_sessions": 3261,
+      "accuracy": 0.9969334559950935,
+      "macro_f1": 0.9924118455225946,
+      "per_class": {
+        "legit_login": {
+          "precision": 0.9985029940119761,
+          "recall": 1.0,
+          "f1-score": 0.9992509363295881,
+          "support": 667.0
+        },
+        "legit_typo": {
+          "precision": 0.9811320754716981,
+          "recall": 1.0,
+          "f1-score": 0.9904761904761905,
+          "support": 468.0
+        },
+        "shared_ip_legit": {
+          "precision": 1.0,
+          "recall": 0.9876543209876543,
+          "f1-score": 0.9937888198757764,
+          "support": 81.0
+        },
+        "burst_bruteforce": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 374.0
+        },
+        "focused_bruteforce": {
+          "precision": 1.0,
+          "recall": 0.9,
+          "f1-score": 0.9473684210526315,
+          "support": 60.0
+        },
+        "large_dictionary_scanner": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 26.0
+        },
+        "low_and_slow": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 929.0
+        },
+        "persistent_multiday_attacker": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 334.0
+        },
+        "coordinated_botnet_spike": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 178.0
+        },
+        "password_spray": {
+          "precision": 1.0,
+          "recall": 0.9716981132075472,
+          "f1-score": 0.9856459330143541,
+          "support": 106.0
+        },
+        "credential_stuffing": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 38.0
+        },
+        "accuracy": 0.9969334559950935,
+        "macro avg": {
+          "precision": 0.998148642680334,
+          "recall": 0.9872138576541091,
+          "f1-score": 0.9924118455225946,
+          "support": 3261.0
+        },
+        "weighted avg": {
+          "precision": 0.9969859884473299,
+          "recall": 0.9969334559950935,
+          "f1-score": 0.9968907391129438,
+          "support": 3261.0
+        }
+      },
+      "confusion_matrix": {
+        "labels": [
+          "legit_login",
+          "legit_typo",
+          "shared_ip_legit",
+          "burst_bruteforce",
+          "focused_bruteforce",
+          "large_dictionary_scanner",
+          "low_and_slow",
+          "persistent_multiday_attacker",
+          "coordinated_botnet_spike",
+          "password_spray",
+          "credential_stuffing"
+        ],
+        "matrix": [
+          [
+            667,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            468,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            80,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            374,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            6,
+            0,
+            0,
+            54,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            26,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            929,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            334,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            178,
+            0,
+            0
+          ],
+          [
+            1,
+            2,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            103,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            38
+          ]
+        ]
+      },
+      "low_confidence_fraction": 0.0009199632014719411
+    },
+    "ambiguous_attack_not_trained": {
+      "n": 55,
+      "detected_as_attack": 0.0,
+      "labelled_as": {
+        "legit_typo": 55
+      }
+    },
+    "by_original_pattern": {
+      "ambiguous_attack": {
+        "n": 55,
+        "group_correct": 0.0,
+        "class_correct": null
+      },
+      "ambiguous_legit": {
+        "n": 60,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "burst_bruteforce": {
+        "n": 374,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "coordinated_botnet_spike": {
+        "n": 178,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "credential_stuffing": {
+        "n": 38,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "focused_bruteforce": {
+        "n": 60,
+        "group_correct": 0.9,
+        "class_correct": 0.9
+      },
+      "large_dictionary_scanner": {
+        "n": 26,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "legit_multi_ip_roaming": {
+        "n": 140,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "legit_success": {
+        "n": 527,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "legit_typo": {
+        "n": 408,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "low_and_slow": {
+        "n": 929,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "password_spray": {
+        "n": 106,
+        "group_correct": 0.9716981132075472,
+        "class_correct": 0.9716981132075472
+      },
+      "persistent_multiday_attacker": {
+        "n": 334,
+        "group_correct": 1.0,
+        "class_correct": 1.0
+      },
+      "shared_ip_legit": {
+        "n": 81,
+        "group_correct": 1.0,
+        "class_correct": 0.9876543209876543
+      }
+    }
+  },
+  "shuffled_label_test_class_macro_f1": 0.045267389975467816,
+  "export_max_abs_diff_vs_sklearn": 2.344669357626228e-08,
+  "forest_json_kb": 909.2
+}

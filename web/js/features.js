@@ -59,12 +59,18 @@ function parseCSV(text) {
 }
 
 // Parses "YYYY-MM-DD HH:MM:SS.mmm" (and plain ISO strings) into epoch ms.
+// Only ISO-style dates are accepted ("YYYY-MM-DD HH:MM:SS[.fff][Z|+07:00]"),
+// the same rule the backend applies, so both modes read the same rows.
+// Without a zone the time is read as the viewer's local time.
+const ISO_TS = /^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:[.,]\d+)?)?)?\s*(?:Z|[+-]\d{2}:?\d{2})?$/i;
 function parseTimestamp(s) {
-  const iso = s.trim().replace(" ", "T");
-  const t = Date.parse(iso.includes("T") ? iso : iso + "T00:00:00");
-  if (!isNaN(t)) return t;
-  const t2 = Date.parse(s);
-  return t2;
+  const raw = String(s ?? "").trim();
+  if (!ISO_TS.test(raw)) return NaN;
+  let iso = raw.replace(" ", "T").replace(",", ".").replace(/\s+(?=[Z+-])/i, "");
+  iso = iso.replace(/(\.\d{3})\d+/, "$1");                  // Date.parse wants <= 3 fraction digits
+  iso = iso.replace(/([+-]\d{2})(\d{2})$/, "$1:$2");         // +0700 -> +07:00
+  if (!iso.includes("T")) iso += "T00:00:00";
+  return Date.parse(iso);
 }
 
 /**
@@ -90,14 +96,16 @@ function loadLogRows(csvText) {
     throw new Error("CSV is missing required column(s): " + missing.join(", "));
   }
 
+  // fields are trimmed (same as the backend), short/ragged rows don't crash
+  const cell = (r, i) => String(r[i] ?? "").trim();
   return rows.map(r => ({
     ts: parseTimestamp(r[iTs]),
-    tsRaw: r[iTs],
-    Event: r[iEvent],
-    Username: r[iUser],
-    Source_IP: r[iIp],
-    Source_Port: r[iPort],
-  })).filter(r => !isNaN(r.ts));
+    tsRaw: cell(r, iTs),
+    Event: cell(r, iEvent),
+    Username: cell(r, iUser),
+    Source_IP: cell(r, iIp),
+    Source_Port: cell(r, iPort),
+  })).filter(r => !isNaN(r.ts) && r.Source_IP !== "");
 }
 
 /**
@@ -290,6 +298,6 @@ function extractFeatures(session) {
 }
 
 window.SSHFeatures = {
-  FEATURE_COLUMNS, loadLogRows, segmentSessions,
+  FEATURE_COLUMNS, loadLogRows, segmentSessions, parseTimestamp,
   extractFeatures, extractAllFeatures,
 };
