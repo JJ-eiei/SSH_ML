@@ -43,6 +43,16 @@ persistent multi-day campaign live in the terminal — those two behaviors
 are still fully demonstrated via the `09`/`10` canned test logs, which
 already carry the multi-session/multi-IP history those features need.
 
+Preset timing: each preset logs the same attempt counts, inter-arrival
+ranges and success rates as the training generator
+(`../v3/generate_v3_dataset.py`). Lines still appear on screen 90 ms apart;
+only the logged timestamps follow the real pattern. An earlier version
+compressed Spray/Stuffing timing ~10x, which made them unlike anything in
+training and they scored as legit. Simulated 2,000 runs each after the fix:
+Burst, Focused, Spray flagged and typed correctly 100%, Stuffing 99.9%.
+Focused starts at 15 fails: below ~13 fails on a real-looking account the
+model can't separate it from a user mistyping (overlaps legit_typo by design).
+
 ## What's new in v3
 
 - **Event vocabulary expanded**: `Invalid user` and `Accepted publickey`,
@@ -64,6 +74,36 @@ already carry the multi-session/multi-IP history those features need.
   **RandomForest**, to keep the pure-JS tree-traversal engine (`js/model.js`,
   unchanged from v2) — same verified-against-sklearn approach as before.
 
+## Attack type (stage 2)
+
+Sessions flagged as Attack also get **which kind of brute force** it looks
+like, mapped to MITRE ATT&CK Brute Force (T1110):
+
+| Type | MITRE |
+|---|---|
+| Burst brute force, Focused brute force, Dictionary scanner, Low-and-slow, Persistent multi-day | T1110.001 Password Guessing |
+| Botnet spike (many IPs, same target, same 15 min) | T1110 |
+| Password spraying | T1110.003 |
+| Credential stuffing | T1110.004 |
+
+- **Two-stage design:** stage 1 (`model/forest.json`) is unchanged and still
+  decides Attack/Legit. Stage 2 (`model/forest_type.json`, 400 trees, depth 8,
+  same 16 features) only labels sessions stage 1 flags at the current
+  threshold. A type model has no "legit" answer, so it is never shown for
+  legit sessions.
+- `ambiguous_attack` is not a type (it is a legit-looking case stage 1 can't
+  flag), so it was excluded from stage-2 training.
+- Top-class probability below 0.6 is shown as **"ไม่แน่ใจ" (closest: …)**
+  instead of forcing a label.
+- Trained/evaluated by `../v3/train_type_model.py` (also notebook section 10):
+  test 100%, OOD 99.8% accuracy, shuffled-label sanity check collapses to
+  macro F1 0.04. These numbers mostly show the synthetic types are separable
+  by construction, not that real attackers sort into these 8 boxes this
+  neatly. Not validated on real traffic.
+- The Live Console simulates one IP in one session, so it can only show
+  session-level types. Persistent multi-day and Botnet need the history in
+  test logs `09` and `10`.
+
 ## What's in here
 
 - `index.html` / `style.css` — the page
@@ -71,11 +111,16 @@ already carry the multi-session/multi-IP history those features need.
   Source_IP), and the full v3 feature set (session + IP-level +
   time-window). Mirrors `../backend/pipeline.py` exactly — keep both in
   sync if either changes.
-- `js/model.js` — pure-JS traversal of the trained Random Forest (unchanged
-  from v2; it's generic over whatever `feature_columns` the forest.json
-  says). Verified against the real sklearn model: max probability
-  difference ~1.6e-8 (floating-point rounding only).
-- `js/app.js` — wires upload → pipeline → results table
+- `js/attack-types.js` — display names, MITRE IDs and one-line "signal"
+  text for each stage-2 attack type
+- `model/forest_type.json` — exported stage-2 attack-type model (exported and
+  verified against sklearn by `../v3/train_type_model.py`, max diff ~5e-9)
+- `js/model.js` — pure-JS traversal of the trained Random Forests: `SSHModel`
+  (stage 1, binary) and `SSHTypeModel` (stage 2, multiclass). Generic over
+  whatever `feature_columns` each JSON says. Verified against the real
+  sklearn models (floating-point rounding only).
+- `js/app.js` — wires upload → pipeline → results table (incl. the
+  "ประเภทการโจมตี" column and the types-found summary)
 - `model/forest.json` — the exported v3 model (400 trees, depth 8, ~960 KB)
 - `sample-log.csv` — a small demo log covering a few patterns
 - `test_logs/` — 10 self-contained demo logs for the test-suite panel (see

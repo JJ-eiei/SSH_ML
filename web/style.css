@@ -9,6 +9,10 @@
   --danger-bg: rgba(255, 93, 108, 0.12);
   --safe: #3ddc97;
   --safe-bg: rgba(61, 220, 151, 0.10);
+  --warn: #f5a623;
+  --warn-bg: rgba(245, 166, 35, 0.14);
+  --type: #ffb547;
+  --type-bg: rgba(255, 181, 71, 0.12);
   --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
 }
 
@@ -399,3 +403,46 @@ footer {
 }
 .btn-preset:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .btn-preset:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ---- stage-2 attack type ---- */
+.type-cell { min-width: 190px; }
+.type-badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: var(--type-bg);
+  color: var(--type);
+  white-space: nowrap;
+}
+.type-badge.type-low { background: var(--warn-bg); color: var(--warn); }
+.type-sub { display: block; font-size: 0.75rem; color: var(--text-dim); margin-top: 3px; }
+.type-none { color: var(--text-dim); }
+
+.type-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+.type-breakdown[hidden], .live-type[hidden] { display: none; }
+.type-breakdown-label { font-size: 0.8rem; color: var(--text-dim); }
+.type-chip {
+  font-size: 0.8rem;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--type-bg);
+  color: var(--type);
+}
+.type-chip b { color: var(--text); margin-left: 2px; }
+
+.live-type {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--panel-border);
+  font-size: 0.8rem;
+}
+.live-type .type-label { color: var(--text-dim); }
+.live-type .type-signal { display: block; font-size: 0.75rem; color: var(--text-dim); margin-top: 4px; }

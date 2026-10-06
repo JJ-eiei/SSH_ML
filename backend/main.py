@@ -5,11 +5,14 @@ session + IP-level + cross-IP time-window features; see pipeline.py).
 Endpoints:
   GET  /health           liveness check (Render pings this kind of thing)
   POST /predict           upload a log CSV, get back per-session risk scores
+                          (+ stage-2 attack type for each session)
 
 Run locally:
     uvicorn main:app --reload
 Deploy on Render: see ../render.yaml
 """
+
+import os
 
 import joblib
 from fastapi import FastAPI, UploadFile, File, HTTPException, Query
@@ -18,6 +21,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pipeline import load_log_dataframe, segment_sessions, build_session_results
 
 MODEL_PATH = "ssh_bruteforce_model_v3.joblib"
+TYPE_MODEL_PATH = "ssh_attack_type_model_v3.joblib"  # stage 2 (optional)
 
 app = FastAPI(title="SSH Brute-Force Detector API")
 
@@ -36,17 +40,25 @@ app.add_middleware(
 )
 
 _model_bundle = None
+_type_bundle = None
 
 
 @app.on_event("startup")
 def load_model():
-    global _model_bundle
+    global _model_bundle, _type_bundle
     _model_bundle = joblib.load(MODEL_PATH)
+    if os.path.exists(TYPE_MODEL_PATH):
+        try:
+            _type_bundle = joblib.load(TYPE_MODEL_PATH)
+        except Exception as e:  # stage 2 is optional: keep serving Attack/Legit
+            print(f"WARNING: could not load {TYPE_MODEL_PATH}: {e}")
+            _type_bundle = None
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "model_loaded": _model_bundle is not None}
+    return {"status": "ok", "model_loaded": _model_bundle is not None,
+            "type_model_loaded": _type_bundle is not None}
 
 
 @app.post("/predict")
@@ -66,12 +78,13 @@ async def predict(
         raise HTTPException(400, "No rows found in the uploaded file")
 
     df = segment_sessions(df, gap_minutes)
-    results = build_session_results(df, _model_bundle["model"])
+    results = build_session_results(df, _model_bundle["model"], _type_bundle)
 
     return {
         "n_rows": len(df),
         "n_sessions": len(results),
         "gap_minutes": gap_minutes,
         "feature_columns": _model_bundle["feature_columns"],
+        "type_classes": _type_bundle["classes"] if _type_bundle else None,
         "sessions": results,
     }

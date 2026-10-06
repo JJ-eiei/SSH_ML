@@ -11,16 +11,25 @@
 //     screen, purely for watchability.
 //   - the LOGGED timestamp on each row -- the synthetic time the event
 //     "really" happened at, which is what feature extraction sees. Preset
-//     playback reveals lines fast but logs them with the REAL inter-arrival
-//     timing of that attack pattern (see PRESETS below), so a Burst preset
-//     actually produces burst-like attempts_per_minute, not just a fast
-//     on-screen animation.
+//     playback reveals lines fast (90 ms each) but logs them with the SAME
+//     inter-arrival ranges, attempt counts and success rates the training
+//     generator uses for that pattern (v3/generate_v3_dataset.py), so the
+//     model sees a session shaped like the ones it learned from. Logged time
+//     costs nothing on screen, so there is no reason to compress it (an
+//     earlier version did, which made Spray/Stuffing look unlike anything in
+//     training and score as legit).
 
 (() => {
   const HINT_AFTER_FAILS = 8;
   const DEFAULT_USERNAMES = ["root", "admin", "test", "guest", "pi", "oracle", "ubuntu", "mysql", "postgres", "ftpuser"];
-  const REAL_USERNAMES = ["jsmith", "k.wong", "a.patel", "m.garcia", "t.nguyen", "s.johnson", "r.kim", "l.chen", "d.brown", "n.suarez"];
-  const SPRAY_PASSWORDS = ["admin123", "111111", "qwerty", "123456", "welcome1"];
+  // same lists as the training generator (v3/generate_v3_dataset.py)
+  const REAL_USERNAMES = [
+    "jsmith", "k.wong", "a.patel", "m.garcia", "t.nguyen", "s.johnson",
+    "r.kim", "l.chen", "d.brown", "n.suarez", "c.taylor", "p.singh",
+    "e.martin", "y.tanaka", "b.davis", "f.rossi", "h.mueller", "v.ivanov",
+    "j.lee2", "o.dubois",
+  ];
+  const SPRAY_PASSWORDS = ["admin123", "111111", "admin", "system", "qwerty", "123456", "password", "letmein", "welcome1", "123123"];
   const REVEAL_WORDS = ["Summer2026!", "Winter@123", "Spring#456", "Autumn$789", "Ocean-Blue7", "River-Gold3"];
 
   let els = {};
@@ -92,7 +101,7 @@
   function appendRow(event, username) {
     // real wall-clock time -- this is a HUMAN typing, so inter-arrival gaps
     // here are genuinely the user's own typing speed (usually seconds),
-    // unlike the synthetic accelerated gaps used for preset playback below.
+    // unlike preset playback below, which logs the generator's timing.
     state.rows.push({ ts: Date.now(), Event: event, Username: username, Source_Port: state.port });
   }
 
@@ -112,6 +121,7 @@
       els.gaugeValue.textContent = "0%";
       els.gaugeVerdict.textContent = "รอข้อมูล...";
       els.gaugeVerdict.className = "gauge-verdict";
+      updateTypeLine(null, false);
       return;
     }
     try {
@@ -126,11 +136,33 @@
       els.gaugeValue.textContent = pct + "%";
       els.gaugeVerdict.textContent = isAttack ? "🚨 ตรวจพบว่าเป็น Attack" : "ปกติ (ยังไม่ถึงเกณฑ์)";
       els.gaugeVerdict.className = "gauge-verdict " + (isAttack ? "verdict-attack" : "verdict-safe");
+      updateTypeLine(feats, isAttack);
       updateFeatureChips(feats);
     } catch (err) {
       els.gaugeVerdict.textContent = "โหลดโมเดลไม่สำเร็จ: " + err.message;
       console.error(err);
     }
+  }
+
+  // Stage 2: what kind of attack this looks like -- only once stage 1 flags it.
+  // Note: the console simulates ONE IP in ONE session, so the IP-history and
+  // cross-IP types (persistent multi-day, botnet) cannot appear here; those
+  // are shown by test logs 09 and 10.
+  function updateTypeLine(feats, isAttack) {
+    if (!feats || !isAttack || !SSHTypeModel.featureColumns) {
+      els.typeLine.hidden = true;
+      return;
+    }
+    const t = SSHTypeModel.predictType(feats);
+    const info = describeAttackType(t.type);
+    const pct = Math.round(t.confidence * 100);
+    els.typeLine.innerHTML = t.lowConfidence
+      ? `<span class="type-label">ประเภท:</span> <span class="type-badge type-low">ไม่แน่ใจ</span>
+         <span class="type-sub">ใกล้เคียง ${info.name} (${pct}%)</span>`
+      : `<span class="type-label">ประเภท:</span> <span class="type-badge">${info.name}</span>
+         <span class="type-sub">${info.th} · ${info.mitre} · ${pct}%</span>
+         <span class="type-signal">${info.signal}</span>`;
+    els.typeLine.hidden = false;
   }
 
   function updateFeatureChips(feats) {
@@ -147,11 +179,11 @@
     ).join("");
   }
 
-  let modelLoadPromise = null;
-  function ensureModelLoadedLocal() {
-    if (SSHModel.featureColumns) return Promise.resolve();
-    if (!modelLoadPromise) modelLoadPromise = SSHModel.load("model/forest.json");
-    return modelLoadPromise;
+  async function ensureModelLoadedLocal() {
+    await SSHModel.load("model/forest.json");
+    // stage 2 is optional -- the gauge still works if it fails to load
+    try { await SSHTypeModel.load("model/forest_type.json"); }
+    catch (err) { console.warn("attack-type model not loaded:", err); }
   }
 
   // ------------------------------------------------------------- manual input --
@@ -192,56 +224,61 @@
 
   // -------------------------------------------------------------- presets --
   function buildPresetRows(type) {
+    // Counts / gaps / success rates mirror v3/generate_v3_dataset.py
+    // (gen_burst_bruteforce, gen_focused_bruteforce, gen_password_spray,
+    // gen_credential_stuffing). Seconds below are LOGGED time, not animation.
     const now = Date.now();
     const rows = [];
     let t = now;
+    const add = (event, user) => rows.push({ ts: t, Event: event, Username: user, Source_Port: randomPort() });
 
     if (type === "burst") {
-      const user = state.currentUsername || pick(DEFAULT_USERNAMES);
+      // 15-45 fails, 0.3-3 s apart, 5% chance of a final success
+      const user = state.currentUsername || pick(DEFAULT_USERNAMES.concat(REAL_USERNAMES));
       const nFail = Math.round(uniform(15, 45));
-      for (let i = 0; i < nFail; i++) {
-        rows.push({ ts: t, Event: "Failed password", Username: user, Source_Port: randomPort() });
-        t += uniform(300, 3000);
-      }
-      if (Math.random() < 0.15) rows.push({ ts: t, Event: "Accepted password", Username: user, Source_Port: randomPort() });
+      for (let i = 0; i < nFail; i++) { add("Failed password", user); t += uniform(300, 3000); }
+      if (Math.random() < 0.05) add("Accepted password", user);
     }
 
     if (type === "focused") {
+      // one account (60% default names), 15-30 fails, 2-35 s apart. The
+      // generator goes down to 6 fails; below ~13 fails on a real-looking
+      // account the model can't tell this from a user mistyping (by design,
+      // that range overlaps legit_typo), so the preset starts at 15 to show
+      // the pattern rather than the overlap. Type a few wrong passwords by
+      // hand to see the overlap instead.
       const user = state.currentUsername || (Math.random() < 0.6 ? pick(DEFAULT_USERNAMES) : pick(REAL_USERNAMES));
-      const nFail = Math.round(uniform(10, 30));
-      for (let i = 0; i < nFail; i++) {
-        rows.push({ ts: t, Event: "Failed password", Username: user, Source_Port: randomPort() });
-        t += uniform(2000, 12000); // compressed from the real 2-35s so the demo stays watchable
-      }
+      const nFail = Math.round(uniform(15, 30));
+      for (let i = 0; i < nFail; i++) { add("Failed password", user); t += uniform(2000, 35000); }
     }
 
     if (type === "spray") {
-      const targets = sample(REAL_USERNAMES, 6);
+      // 2 common passwords x 8 real accounts, 20-300 s apart, 15% chance one account falls
+      const targets = sample(REAL_USERNAMES, 8);
       const passwords = sample(SPRAY_PASSWORDS, 2);
-      const succeedUser = Math.random() < 0.3 ? pick(targets) : null;
+      const succeedUser = Math.random() < 0.15 ? pick(targets) : null;
       for (const pw of passwords) {
+        const isLast = pw === passwords[passwords.length - 1];
         for (const user of targets) {
-          const isLast = pw === passwords[passwords.length - 1];
-          if (user === succeedUser && isLast) {
-            rows.push({ ts: t, Event: "Accepted password", Username: user, Source_Port: randomPort() });
-          } else {
-            rows.push({ ts: t, Event: "Failed password", Username: user, Source_Port: randomPort() });
-          }
-          t += uniform(8000, 25000); // compressed from real 20-300s
+          add(user === succeedUser && isLast ? "Accepted password" : "Failed password", user);
+          t += uniform(20000, 300000);
         }
       }
     }
 
     if (type === "stuffing") {
-      const targets = sample(REAL_USERNAMES, 8);
+      // 12 accounts, one leaked pair each; 20-50% of pairs are correct
+      // (30% of hits after one stale guess), 5-60 s apart
+      const targets = sample(REAL_USERNAMES, 12);
+      const hitRate = uniform(0.2, 0.5);
       for (const user of targets) {
-        const isHit = Math.random() < 0.3;
-        if (isHit) {
-          rows.push({ ts: t, Event: "Accepted password", Username: user, Source_Port: randomPort() });
+        if (Math.random() < hitRate) {
+          if (Math.random() < 0.3) { add("Failed password", user); t += uniform(1000, 10000); }
+          add("Accepted password", user);
         } else {
-          rows.push({ ts: t, Event: "Failed password", Username: user, Source_Port: randomPort() });
+          add("Failed password", user);
         }
-        t += uniform(3000, 15000); // compressed from real 5-60s
+        t += uniform(5000, 60000);
       }
     }
 
@@ -310,6 +347,7 @@
       gaugeValue: document.getElementById("live-gauge-value"),
       gaugeVerdict: document.getElementById("live-gauge-verdict"),
       featuresBox: document.getElementById("live-features"),
+      typeLine: document.getElementById("live-type"),
       resetBtn: document.getElementById("live-reset-btn"),
       downloadBtn: document.getElementById("live-download-btn"),
     };

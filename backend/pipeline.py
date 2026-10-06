@@ -176,24 +176,46 @@ def _build_botnet_window_feature(sessions: pd.DataFrame, window_minutes=BOTNET_W
     return result
 
 
-def build_session_results(df: pd.DataFrame, model) -> list[dict]:
+def predict_attack_types(sessions: pd.DataFrame, type_bundle) -> list[dict]:
+    """Stage 2: which kind of attack, from the same 16 features. Computed
+    for every session; the frontend only SHOWS it for sessions that stage 1
+    flags at the current threshold (the type is meaningless for legit ones)."""
+    model = type_bundle["model"]
+    low = type_bundle.get("low_confidence", 0.6)
+    proba = model.predict_proba(sessions[type_bundle["feature_columns"]])
+    classes = list(model.classes_)
+    out = []
+    for row in proba:
+        order = np.argsort(row)[::-1]
+        out.append({
+            "type": classes[order[0]],
+            "confidence": float(row[order[0]]),
+            "low_confidence": bool(row[order[0]] < low),
+            "ranked": [{"type": classes[k], "p": float(row[k])} for k in order[:3]],
+        })
+    return out
+
+
+def build_session_results(df: pd.DataFrame, model, type_bundle=None) -> list[dict]:
     """df must already have Session_ID (from segment_sessions). Computes
     session-level + IP-level + cross-IP time-window features together (the
     latter two need every session in the file, not just one group), scores
     each session, and returns one dict per session for the frontend's
-    table + expandable evidence view."""
+    table + expandable evidence view. If type_bundle is given, each session
+    also gets an "attack_type" prediction (stage 2)."""
     sessions = df.groupby("Session_ID").apply(extract_session_features).reset_index()
 
     ip_feats = _build_ip_features(df, df[["Source_IP", "Session_ID"]].drop_duplicates())
     sessions = sessions.merge(ip_feats, on="Source_IP", how="left")
     sessions["distinct_ips_same_target_15min"] = _build_botnet_window_feature(sessions)
 
-    X = sessions[FEATURE_COLUMNS].values
+    X = sessions[FEATURE_COLUMNS]
     probas = model.predict_proba(X)[:, 1]
+    types = predict_attack_types(sessions, type_bundle) if type_bundle else [None] * len(sessions)
 
     results = []
     raw_by_session = {sid: g.sort_values("Timestamp") for sid, g in df.groupby("Session_ID")}
-    for row, proba in zip(sessions.itertuples(index=False), probas):
+    for row, proba, attack_type in zip(sessions.itertuples(index=False), probas, types):
         g = raw_by_session[row.Session_ID]
         feats = {col: getattr(row, col) for col in FEATURE_COLUMNS}
         feats["n_events"] = int(row.n_events)
@@ -202,7 +224,8 @@ def build_session_results(df: pd.DataFrame, model) -> list[dict]:
             "ip": row.Source_IP,
             "start": row.session_start.isoformat(),
             "proba": float(proba),
-            "features": {k: (float(v) if isinstance(v, (np.floating, float)) else int(v))
+            "attack_type": attack_type,
+            "features":{k: (float(v) if isinstance(v, (np.floating, float)) else int(v))
                          for k, v in feats.items()},
             "rows": [
                 {

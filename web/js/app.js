@@ -1,6 +1,8 @@
 // app.js -- wires file upload -> session segmentation -> feature extraction
-// -> model inference -> table rendering. Everything runs in the browser;
-// nothing is uploaded anywhere.
+// -> model inference (stage 1: Attack/Legit, stage 2: attack type) -> table.
+// Runs entirely in the browser when config.js leaves API_BASE_URL empty;
+// otherwise the CSV is sent to the FastAPI backend, which runs the same
+// two models and returns the same fields.
 
 (() => {
   const fileInput = document.getElementById("file-input");
@@ -21,8 +23,9 @@
   const statAttack = document.getElementById("stat-attack");
   const statLegit = document.getElementById("stat-legit");
   const statIps = document.getElementById("stat-ips");
+  const typeBreakdown = document.getElementById("type-breakdown");
 
-  let currentResults = [];       // [{session, features, proba}]
+  let currentResults = [];       // [{session, features, proba, attackType}]
   let lastRawText = null;        // raw CSV text of the last loaded file
   let lastLabel = null;          // display name of the last loaded file
   let sortState = { key: "risk", dir: -1 };
@@ -51,9 +54,41 @@
   }
 
   async function ensureModelLoaded() {
-    if (SSHModel.featureColumns) return;
-    setStatus("กำลังโหลดโมเดล...");
-    await SSHModel.load("model/forest.json");
+    if (!SSHModel.featureColumns) {
+      setStatus("กำลังโหลดโมเดล...");
+      await SSHModel.load("model/forest.json");
+    }
+    // stage 2 is optional: if it fails to load, the page still scores Attack/Legit
+    if (!SSHTypeModel.featureColumns) {
+      try { await SSHTypeModel.load("model/forest_type.json"); }
+      catch (err) { console.warn("attack-type model not loaded:", err); }
+    }
+  }
+
+  // Stage-2 result for one session -> table cell. Only shown for sessions that
+  // stage 1 flags at the CURRENT threshold (type is meaningless for legit ones).
+  function typeCellHtml(attackType, isAttack) {
+    if (!isAttack) return `<span class="type-none">—</span>`;
+    if (!attackType) return `<span class="type-none">ไม่มีข้อมูลประเภท</span>`;
+    const info = describeAttackType(attackType.type);
+    const pct = Math.round(attackType.confidence * 100);
+    if (attackType.lowConfidence) {
+      return `<span class="type-badge type-low" title="${info.signal}">ไม่แน่ใจ</span>
+        <span class="type-sub">ใกล้เคียง: ${info.name} (${pct}%)</span>`;
+    }
+    return `<span class="type-badge" title="${info.signal}">${info.name}</span>
+      <span class="type-sub">${info.th} · ${info.mitre} · ${pct}%</span>`;
+  }
+
+  function typeOf(attackType) {
+    if (!attackType) return null;
+    return attackType.lowConfidence ? "uncertain" : attackType.type;
+  }
+
+  // CSV values (usernames, IPs, events...) come from an uploaded file and
+  // must never be inserted as HTML.
+  function esc(v) {
+    return String(v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
 
   function formatDuration(seconds) {
@@ -73,9 +108,9 @@
     bits.push(`${features.n_failed} failed / ${features.n_success} success`);
     if (features.n_unique_usernames > 1) {
       const users = [...new Set(session.rows.map(r => r.Username))];
-      bits.push(`${features.n_unique_usernames} usernames: ${users.slice(0, 6).join(", ")}${users.length > 6 ? "…" : ""}`);
+      bits.push(`${features.n_unique_usernames} usernames: ${users.slice(0, 6).map(esc).join(", ")}${users.length > 6 ? "…" : ""}`);
     } else {
-      bits.push(`username: ${session.rows[0].Username}`);
+      bits.push(`username: ${esc(session.rows[0].Username)}`);
     }
     if (features.targets_default_username) bits.push("default/service account targeted");
     if (features.ip_session_count > 1) bits.push(`IP seen in ${features.ip_session_count} sessions over ${features.ip_active_span_days.toFixed(1)}d`);
@@ -106,6 +141,12 @@
       },
       features: s.features,
       proba: s.proba,
+      attackType: s.attack_type ? {
+        type: s.attack_type.type,
+        confidence: s.attack_type.confidence,
+        lowConfidence: s.attack_type.low_confidence,
+        ranked: s.attack_type.ranked,
+      } : null,
     }));
     return { nRows: data.n_rows, results };
   }
@@ -122,7 +163,8 @@
       const features = allFeatures[i];
       const x = SSHModel.featureVector(features);
       const proba = SSHModel.predictProba(x);
-      return { session, features, proba };
+      const attackType = SSHTypeModel.featureColumns ? SSHTypeModel.predictType(features) : null;
+      return { session, features, proba, attackType };
     });
     return { nRows: rows.length, results };
   }
@@ -144,6 +186,14 @@
 
     const sorted = [...rowsToShow].sort((a, b) => {
       const key = sortState.key;
+      if (key === "type") {
+        // flagged rows sorted by type name; unflagged ("—") always last
+        const fa = a.proba >= threshold, fb = b.proba >= threshold;
+        if (fa !== fb) return fa ? -1 : 1;
+        if (!fa) return b.proba - a.proba;
+        const ta = typeOf(a.attackType) || "", tb = typeOf(b.attackType) || "";
+        return ta === tb ? b.proba - a.proba : (ta < tb ? -1 : 1) * -sortState.dir;
+      }
       let av, bv;
       if (key === "risk") { av = a.proba; bv = b.proba; }
       else if (key === "ip") { av = a.session.ip; bv = b.session.ip; }
@@ -162,12 +212,13 @@
       tr.className = "session-row";
       tr.innerHTML = `
         <td><span class="risk-badge ${isAttack ? "attack" : "legit"}">${isAttack ? "ATTACK" : "legit"} ${(r.proba * 100).toFixed(0)}%</span></td>
-        <td class="mono">${r.session.ip}</td>
+        <td class="mono">${esc(r.session.ip)}</td>
         <td class="mono">${formatTime(r.session.rows[0].ts)}</td>
         <td>${formatDuration(r.features.duration_seconds)}</td>
         <td>${r.features.n_events}</td>
         <td>${r.features.n_failed}</td>
         <td>${r.features.n_unique_usernames}</td>
+        <td class="type-cell">${typeCellHtml(r.attackType, isAttack)}</td>
         <td class="evidence">${buildEvidence(r.session, r.features)}</td>
       `;
       const detailTr = document.createElement("tr");
@@ -175,9 +226,9 @@
       detailTr.style.display = "none";
       const logLines = r.session.rows.map(row => {
         const cls = row.Event === "Failed password" ? "fail" : "success";
-        return `<div class="${cls}">${row.tsRaw}  ${row.Event.padEnd(18)}  user=${row.Username}  port=${row.Source_Port}</div>`;
+        return `<div class="${cls}">${esc(row.tsRaw)}  ${esc(String(row.Event).padEnd(18))}  user=${esc(row.Username)}  port=${esc(row.Source_Port)}</div>`;
       }).join("");
-      detailTr.innerHTML = `<td colspan="8"><div class="log-lines">${logLines}</div></td>`;
+      detailTr.innerHTML = `<td colspan="9"><div class="log-lines">${logLines}</div></td>`;
 
       tr.addEventListener("click", () => {
         detailTr.style.display = detailTr.style.display === "none" ? "table-row" : "none";
@@ -192,6 +243,25 @@
     statAttack.textContent = attackCount;
     statLegit.textContent = currentResults.length - attackCount;
     statIps.textContent = new Set(currentResults.map(r => r.session.ip)).size;
+
+    // which attack types were found among flagged sessions
+    const counts = new Map();
+    for (const r of currentResults) {
+      if (r.proba < threshold) continue;
+      const key = typeOf(r.attackType);
+      if (key) counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    if (counts.size === 0) {
+      typeBreakdown.hidden = true;
+      typeBreakdown.innerHTML = "";
+    } else {
+      const chips = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([key, n]) => {
+        const label = key === "uncertain" ? "ไม่แน่ใจประเภท" : `${describeAttackType(key).name} (${describeAttackType(key).mitre})`;
+        return `<span class="type-chip">${label} <b>×${n}</b></span>`;
+      }).join("");
+      typeBreakdown.innerHTML = `<span class="type-breakdown-label">ประเภทที่พบ:</span>${chips}`;
+      typeBreakdown.hidden = false;
+    }
   }
 
   async function handleFile(text, label) {

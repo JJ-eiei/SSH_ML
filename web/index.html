@@ -11,7 +11,7 @@
 <body>
   <header>
     <h1>SSH Brute-Force Detector : Learning with AI <span class="version-badge">v3</span></h1>
-    <p class="subtitle">ตรวจจับพฤติกรรมโจมตี SSH ด้วย session + IP-level + cross-IP time-window features</p>
+    <p class="subtitle">ตรวจจับพฤติกรรมโจมตี SSH ด้วย session + IP-level + cross-IP time-window features แล้วระบุประเภทการโจมตี (MITRE ATT&amp;CK T1110)</p>
   </header>
 
   <main>
@@ -222,6 +222,7 @@
             </div>
             <div class="gauge-value" id="live-gauge-value">0%</div>
             <div class="gauge-verdict" id="live-gauge-verdict">รอข้อมูล...</div>
+            <div class="live-type" id="live-type" hidden></div>
           </div>
           <div class="live-features" id="live-features"></div>
           <div class="console-actions">
@@ -250,6 +251,7 @@
         <div class="card"><span class="card-value" id="stat-ips">0</span><span class="card-label">Source IP
             ไม่ซ้ำ</span></div>
       </div>
+      <div class="type-breakdown" id="type-breakdown" hidden></div>
     </section>
 
     <section id="results-panel" class="panel hidden">
@@ -268,6 +270,7 @@
               <th data-sort="n_events">Events</th>
               <th data-sort="n_failed">Failed</th>
               <th data-sort="n_unique_usernames">Usernames</th>
+              <th data-sort="type">ประเภทการโจมตี</th>
               <th>Evidence</th>
             </tr>
           </thead>
@@ -280,12 +283,14 @@
   <footer>
     <p>โมเดลเทรนจากข้อมูล synthetic v3 (session + IP-level cross-session + cross-IP time-window features) ยังไม่ได้
       validate กับ traffic โจมตีจริง — ใช้เป็นเครื่องมือทดสอบ/สาธิต ไม่ใช่ระบบ production ฟีเจอร์ IP-level และ
-      time-window คำนวณจากไฟล์ที่อัปโหลดทั้งไฟล์เท่านั้น (ไม่มี state ข้ามไฟล์)</p>
+      time-window คำนวณจากไฟล์ที่อัปโหลดทั้งไฟล์เท่านั้น (ไม่มี state ข้ามไฟล์) ประเภทการโจมตีมาจากโมเดลขั้นที่ 2
+      ซึ่งแยกได้ดีบนข้อมูลจำลอง แต่ยังไม่ได้ทดสอบกับ log จริง</p>
   </footer>
 
   <script src="config.js"></script>
   <script src="js/features.js"></script>
   <script src="js/model.js"></script>
+  <script src="js/attack-types.js"></script>
   <script src="js/app.js"></script>
   <script src="js/live-console.js"></script>
 </body>
