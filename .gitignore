@@ -2,3 +2,32 @@ __pycache__/
 backend/__pycache__/
 *.pyc
 .venv/
+
+# ---- Local-only files (kept on disk, not part of the project) ----
+*.pdf
+canva_upload/
+result_canva/
+*.bak
+*.bak2
+/test_logs/
+/v3/add_evidence_cells.py
+
+# ---- Superseded (v2 era) or unrelated files: removed from the repo, kept on disk ----
+/ssh.ipynb
+/ssh_bruteforce_pipeline2.ipynb
+/ssh_bruteforce_pipeline_v2.ipynb
+/ssh_dataset_ground_truth.csv
+/ssh_dataset_ground_truth_v2.csv
+/ssh_dataset_ood_v2.csv
+/ssh_dataset_features_v2.csv
+/ssh_dataset_features_augmented.csv
+/generate_missing_patterns.py
+/ssh_bruteforce_model_v2.joblib
+/backend/ssh_bruteforce_model_v2.joblib
+/web/export_model.py
+/v3/export_model_v3.py
+/v3/build_notebook.py
+/v3/verify_demo_logs.py
+/models/
+/portable_forest.joblib
+/generate_demo_pcap.py
